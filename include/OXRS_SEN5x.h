@@ -32,7 +32,9 @@ public:
 
     void printToSerial(SEN5x_telemetry_t& t);
 
-    void checkDeviceStatus(); 
+    void checkDeviceStatus();
+    void printModuleVersions();
+    void printSerialNumber();
 
 private:
     inline static const String PUBLISH_TELEMETERY_SECONDS   = "publishTelemetrySeconds";

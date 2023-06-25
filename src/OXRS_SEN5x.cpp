@@ -156,6 +156,70 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
   }
 }
 
+void OXRS_SEN5x::printModuleVersions() {
+    uint16_t error;
+    char errorMessage[256];
+
+    unsigned char productName[32];
+    uint8_t productNameSize = 32;
+
+    error = _sensor.getProductName(productName, productNameSize);
+
+    if (error) {
+        Serial.print("Error trying to execute getProductName(): ");
+        errorToString(error, errorMessage, 256);
+        Serial.println(errorMessage);
+    } else {
+        Serial.print("ProductName:");
+        Serial.println((char*)productName);
+    }
+
+    uint8_t firmwareMajor;
+    uint8_t firmwareMinor;
+    bool firmwareDebug;
+    uint8_t hardwareMajor;
+    uint8_t hardwareMinor;
+    uint8_t protocolMajor;
+    uint8_t protocolMinor;
+
+    error = _sensor.getVersion(firmwareMajor, firmwareMinor, firmwareDebug,
+                             hardwareMajor, hardwareMinor, protocolMajor,
+                             protocolMinor);
+    if (error) {
+        Serial.print("Error trying to execute getVersion(): ");
+        errorToString(error, errorMessage, 256);
+        Serial.println(errorMessage);
+    } else {
+        Serial.print("Firmware: ");
+        Serial.print(firmwareMajor);
+        Serial.print(".");
+        Serial.print(firmwareMinor);
+        Serial.print(", ");
+
+        Serial.print("Hardware: ");
+        Serial.print(hardwareMajor);
+        Serial.print(".");
+        Serial.println(hardwareMinor);
+    }
+}
+
+void OXRS_SEN5x::printSerialNumber() {
+    uint16_t error;
+    char errorMessage[256];
+    unsigned char serialNumber[32];
+    uint8_t serialNumberSize = 32;
+
+    error = _sensor.getSerialNumber(serialNumber, serialNumberSize);
+    if (error) {
+        Serial.print("Error trying to execute getSerialNumber(): ");
+        errorToString(error, errorMessage, 256);
+        Serial.println(errorMessage);
+    } else {
+        Serial.print("SerialNumber:");
+        Serial.println((char*)serialNumber);
+    }
+}
+
 // check device status register
 void OXRS_SEN5x::checkDeviceStatus() 
 {
