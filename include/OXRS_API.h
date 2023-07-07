@@ -1,5 +1,11 @@
 /*
+ * Copyright (c) 2018-2021, SuperHouse Automation Pty Ltd
+ * All rights reserved.
  * OXRS_API.h
+ * 
+ * This software has been extended to support PICOW and Arduino.
+ * It is hoped that changes required here can be incorporated into the base
+ * Superhouse Automation codebase in future.
  */
 
 #ifndef OXRS_API_H
@@ -15,7 +21,7 @@
 #include <ESP8266WiFi.h>
 #else
 #include <WiFi.h>
-#if defined(ESP)        //mzt - Update.h is ESP only - need equiv for PICO
+#if defined(ESP)        //mzt - Update.h is provided by Arduino PICOw framework
 #include <Update.h>
 #endif
 #endif
