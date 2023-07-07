@@ -5,7 +5,7 @@ Integration of [Sensirion SEN55](https://www.sensirion.com/products/catalog/SEN5
 ![alt text](https://admin.sensirion.com/media/portfolio/series/image/6a057318-e34a-4b2c-9303-5ac180312d85.png "Sensirion SEN55")
 
 
-## Features
+# Features
 - Based on the excellent [OXRS ecosystem](https://oxrs.io/) which provides scaffolding support for API and MQTT integration enabling the following:
     - [OXRS AdminUI](https://github.com/OXRS-IO/OXRS-IO-AdminUI-WEB-APP) and API based automation of configuration, for example
 ![Alt text](docs/oxrsadminui.png)
@@ -42,3 +42,12 @@ nox thresholds:
 Features
 - do pmp* as moving averages given noise 
 ```
+
+# Credits
+First and foremost to Jonathan Oxer and the OXRS team.
+
+Secondly all the excellent library contributors used in the project.
+
+# License
+
+Attribution to SuperHouse Automation Pty Ltd for OXRS ecosystem hardware and software.

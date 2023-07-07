@@ -1,5 +1,11 @@
 /*
+ * Copyright (c) 2018-2021, SuperHouse Automation Pty Ltd
+ * All rights reserved.
  * OXRS_API.cpp
+ * 
+ * This software has been extended to support PICOW and Arduino.
+ * It is hoped that changes required here can be incorporated into the base
+ * Superhouse Automation codebase in future.
  */
 
 #include "Arduino.h"
