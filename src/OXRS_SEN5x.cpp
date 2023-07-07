@@ -122,11 +122,11 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
     LOG_DEBUG(F("Measuring"));
     SEN5x_telemetry_t t;
     Error_t error = getMeasurements(t);
-    const char* fmt = "%.2f";
     if (error) {
         logError(error, "Failed to get measurements");
     } 
     else {
+      const char* fmt = "%.2f";
       char buf[50];
       sprintf(buf, fmt, t.pm1p0); json["pm1p0"] = buf;
       sprintf(buf, fmt, t.pm2p5); json["pm2p5"] = buf;
