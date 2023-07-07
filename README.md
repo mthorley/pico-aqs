@@ -10,10 +10,15 @@ Integration of [Sensirion SEN55](https://www.sensirion.com/products/catalog/SEN5
     - [OXRS AdminUI](https://github.com/OXRS-IO/OXRS-IO-AdminUI-WEB-APP) and API based automation of configuration, for example
 ![Alt text](docs/oxrsadminui.png)
 
-- Support via OXRS UI for the following configuration items
-  - Telemetry publishing frequency
-  - Offset temperature
+- Support via OXRS AdminUI for the following items
+  - AQS telemetry publishing frequency
+  - AQS offset temperature
+  - OTA updates
+  - Device/configuration reset
+  - MQTT configuration
+
 - Logging abstraction to enable future integration with Loki or any logging system
+
 - MQTT telemetry to support Grafana integration via NodeRed/InfluxDB
 ![Alt text](docs/grafanaaqs.png)
 
