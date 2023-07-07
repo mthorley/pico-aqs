@@ -1,18 +1,17 @@
 #include "OXRS_SEN5x.h"
 #include "SEN5xDeviceStatus.h"
+#include "OXRS_LOG.h"
 
-void OXRS_SEN5x::begin(TwoWire& wire) {
+static const char* _LOG_PREFIX = "[OXRS_SEN5x] ";
 
+void OXRS_SEN5x::begin(TwoWire& wire)
+{
     // assumes Wire.begin() has been called prior
     _sensor.begin(Wire);
 
-    uint16_t error;
-    char errorMessage[256];
-    error = _sensor.deviceReset();
+    Error_t error = _sensor.deviceReset();
     if (error) {
-        Serial.print("Error trying to execute deviceReset(): ");
-        errorToString(error, errorMessage, 256);
-        Serial.println(errorMessage);
+        logError(error, "Error trying to execute deviceReset():");
     }
 
 // Print SEN55 module information if i2c buffers are large enough
@@ -21,64 +20,54 @@ void OXRS_SEN5x::begin(TwoWire& wire) {
     printModuleVersions();
 #endif
 
-    // set a temperature offset in degrees celsius
-    // Note: supported by SEN54 and SEN55 sensors
-    // By default, the temperature and humidity outputs from the sensor
-    // are compensated for the modules self-heating. If the module is
-    // designed into a device, the temperature compensation might need
-    // to be adapted to incorporate the change in thermal coupling and
-    // self-heating of other device components.
-    //
-    // A guide to achieve optimal performance, including references
-    // to mechanical design-in examples can be found in the app note
-    // “SEN5x – Temperature Compensation Instruction” at www.sensirion.com.
-    // Please refer to those application notes for further information
-    // on the advanced compensation settings used
-    // in `setTemperatureOffsetParameters`, `setWarmStartParameter` and
-    // `setRhtAccelerationMode`.
-    //
     // Adjust tempOffset to account for additional temperature offsets
     // exceeding the SEN module's self heating.
-    float tempOffset = 0.0;
-    error = _sensor.setTemperatureOffsetSimple(tempOffset);
-    if (error) {
-        Serial.print("Error trying to execute setTemperatureOffsetSimple(): ");
-        errorToString(error, errorMessage, 256);
-        Serial.println(errorMessage);
-    } else {
-        Serial.print("Temperature Offset set to ");
-        Serial.print(tempOffset);
-        Serial.println(" deg. Celsius (SEN54/SEN55 only");
-    }
+    setTemperatureOffset();
 
     // Start Measurement
     error = _sensor.startMeasurement();
     if (error) {
-        Serial.print("Error trying to execute startMeasurement(): ");
-        errorToString(error, errorMessage, 256);
-        Serial.println(errorMessage);
+        logError(error, "Error trying to execute startMeasurement():");
     }
 }
 
-uint16_t OXRS_SEN5x::measure(SEN5x_telemetry_t& t) 
+OXRS_SEN5x::Error_t OXRS_SEN5x::getMeasurements(SEN5x_telemetry_t& t)
 {
-    uint16_t error = _sensor.readMeasuredValues(
-        t.pm1p0, t.pm2p5, t.pm4p0, t.pm10p0, t.humidityPercent, t.tempCelsuis, t.vocIndex, t.noxIndex);
-    return error;
+    return _sensor.readMeasuredValues(t.pm1p0, t.pm2p5, t.pm4p0, t.pm10p0, 
+        t.humidityPercent, t.tempCelsuis, t.vocIndex, t.noxIndex);
 }
 
-void OXRS_SEN5x::loop() 
+void OXRS_SEN5x::loop()
 {
     // must be done post begin
     float current_offset;
-    _sensor.getTemperatureOffsetSimple(current_offset);
-    if (current_offset != _tempOffset_celsius) {
-        _sensor.setTemperatureOffsetSimple(_tempOffset_celsius);
-        Serial.println("updated temp");
+    Error_t error = _sensor.getTemperatureOffsetSimple(current_offset);
+    if (error) {
+        logError(error, "Failed to getTemperatureOffsetSimple");
+    }
+    else {
+        if (current_offset != _tempOffset_celsius) {
+            setTemperatureOffset();
+        }
     }
 }
 
-void OXRS_SEN5x::printToSerial(SEN5x_telemetry_t& t) 
+void OXRS_SEN5x::setTemperatureOffset() {
+    Error_t error = _sensor.setTemperatureOffsetSimple(_tempOffset_celsius);
+    if (error) {
+        logError(error, "Error trying to execute setTemperatureOffsetSimple():");
+    } else {
+        LOGF_DEBUG("Set temperature offset: %.02f celsius (SEN54/55 only)", _tempOffset_celsius);
+    }
+}
+
+void OXRS_SEN5x::logTelemetry(SEN5x_telemetry_t& t)
+{
+    LOGF_DEBUG("MassConcentrationPm1p0:%.02f, MassConcentrationPm2p5:%.02f, MassConcentrationPm4p0:%.02f, MassConcentrationPm10p0:%.02f",
+        t.pm1p0, t.pm2p5, t.pm4p0, t.pm10p0);
+}
+
+void OXRS_SEN5x::printToSerial(SEN5x_telemetry_t& t)
 {
        Serial.print("MassConcentrationPm1p0:");
         Serial.print(t.pm1p0);
@@ -121,7 +110,7 @@ void OXRS_SEN5x::printToSerial(SEN5x_telemetry_t& t)
         } 
 }
 
-void OXRS_SEN5x::getTelemetry(JsonVariant json) 
+void OXRS_SEN5x::getTelemetry(JsonVariant json)
 {
   // Do not publish if telemetry has been disabled
   if (_publishTelemetry_ms == 0)
@@ -130,11 +119,14 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
   // Check if time passed is enough to publish
   if ((millis() - _lastPublishTelemetry_ms) > _publishTelemetry_ms)
   {
-    Serial.println("measure");
+    LOG_DEBUG(F("Measuring"));
     SEN5x_telemetry_t t;
-    uint16_t error = measure(t);
+    Error_t error = getMeasurements(t);
     const char* fmt = "%.2f";
-    if (!error) {
+    if (error) {
+        logError(error, "Failed to get measurements");
+    } 
+    else {
       char buf[50];
       sprintf(buf, fmt, t.pm1p0); json["pm1p0"] = buf;
       sprintf(buf, fmt, t.pm2p5); json["pm2p5"] = buf;
@@ -146,9 +138,7 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
       sprintf(buf, fmt, t.noxIndex); json["nox"] = buf;
       printToSerial(t);
     }
-    else {
-      Serial.println("error");
-    }
+
     // Reset timer
     _lastPublishTelemetry_ms = millis();
 
@@ -157,18 +147,14 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
 }
 
 void OXRS_SEN5x::printModuleVersions() {
-    uint16_t error;
-    char errorMessage[256];
 
     unsigned char productName[32];
     uint8_t productNameSize = 32;
 
-    error = _sensor.getProductName(productName, productNameSize);
+    Error_t error = _sensor.getProductName(productName, productNameSize);
 
     if (error) {
-        Serial.print("Error trying to execute getProductName(): ");
-        errorToString(error, errorMessage, 256);
-        Serial.println(errorMessage);
+        logError(error, "Error trying to execute getProductName(): ");
     } else {
         Serial.print("ProductName:");
         Serial.println((char*)productName);
@@ -186,9 +172,7 @@ void OXRS_SEN5x::printModuleVersions() {
                              hardwareMajor, hardwareMinor, protocolMajor,
                              protocolMinor);
     if (error) {
-        Serial.print("Error trying to execute getVersion(): ");
-        errorToString(error, errorMessage, 256);
-        Serial.println(errorMessage);
+        logError(error, "Error trying to execute getVersion(): ");
     } else {
         Serial.print("Firmware: ");
         Serial.print(firmwareMajor);
@@ -211,9 +195,7 @@ void OXRS_SEN5x::printSerialNumber() {
 
     error = _sensor.getSerialNumber(serialNumber, serialNumberSize);
     if (error) {
-        Serial.print("Error trying to execute getSerialNumber(): ");
-        errorToString(error, errorMessage, 256);
-        Serial.println(errorMessage);
+        logError(error, "Error trying to execute getSerialNumber(): ");
     } else {
         Serial.print("SerialNumber:");
         Serial.println((char*)serialNumber);
@@ -228,7 +210,7 @@ void OXRS_SEN5x::checkDeviceStatus()
     _sensor.readDeviceStatus(reg);
 
     // parse register bits
-    SEN5xDeviceStatus ds(SEN5xDeviceStatus::device_t::sen55_sdn_t);
+    SEN5xDeviceStatus ds(SEN5xDeviceStatus::device_t::sen55_sdn_t); // FIXME: autodetect this
     ds.setRegister(reg);
     if (ds.hasIssue()) {
         String msg;
@@ -236,7 +218,7 @@ void OXRS_SEN5x::checkDeviceStatus()
         Serial.print(msg);
     }
     else {
-        Serial.println("ok");
+        LOG_DEBUG(F("Device status ok"));
     }
 }
 
@@ -245,12 +227,12 @@ void OXRS_SEN5x::onConfig(JsonVariant json)
     if (json.containsKey(PUBLISH_TELEMETERY_SECONDS))
     {
         _publishTelemetry_ms = json[PUBLISH_TELEMETERY_SECONDS].as<uint32_t>() * 1000L;
-        Serial.println(_publishTelemetry_ms);
+        LOGF_INFO("Set config publish telemetry ms to %" PRIu32 "", _publishTelemetry_ms);
     }
     if (json.containsKey(TEMPERATURE_OFFSET))
     {
-        _tempOffset_celsius = json[TEMPERATURE_OFFSET].as<int8_t>();
-        Serial.println(_tempOffset_celsius);
+        _tempOffset_celsius = json[TEMPERATURE_OFFSET].as<float_t>();
+        LOGF_INFO("Set config temperature offset degrees to %.02f", _tempOffset_celsius);
     }
 }
 
@@ -273,4 +255,11 @@ Must be a number between 0 and 86400 (i.e. 1 day).";
   temperatureOffset["type"] = "integer";
   temperatureOffset["minimum"] = -10;
   temperatureOffset["maximum"] = 10;
+}
+
+void OXRS_SEN5x::logError(Error_t error, const char* s)
+{
+    char errorMessage[256];
+    errorToString(error, errorMessage, 256);
+    LOGF_ERROR("%s %s", s, errorMessage);
 }

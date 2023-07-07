@@ -80,7 +80,7 @@ boolean _writeJson(DynamicJsonDocument * json, const char * filename)
 {
   File file = LittleFS.open(filename, "w");
 
-  if (!file) 
+  if (!file)
     return false;
 
   serializeJson(*json, file);

@@ -1,6 +1,4 @@
 /*
-THIS WORKS !!!!!!!!!!!!!!!!!!!!
-BASELINE 2.0
 
 Refactoring steps:
 - moving average for pmxyz measurements
@@ -16,6 +14,7 @@ Refactoring steps:
 
 #include <OXRS_IO_PICO.h>
 #include "OXRS_SEN5x.h"
+#include "OXRS_LOG.h"
 
 HAIntegration integration;
 
@@ -25,10 +24,12 @@ char _fwVersion[40] = "<No Version>";
 // Sensirion air quality sensor
 OXRS_SEN5x oxrsSen5x;
 
+static const char* _LOG_PREFIX = "[main] ";
+
 void jsonConfig(JsonVariant json) 
 {
   oxrsSen5x.onConfig(json);
-  Serial.println("jsonConfig called");
+  LOG_DEBUG(F("jsonConfig called"));
 }
 
 // template
@@ -55,6 +56,8 @@ void setup() {
   Serial.begin();
 
   Wire.begin();
+
+  Logger().setLevel(OXRS_LOG::DEBUG);
 
   delay(250); //Give the serial terminal a chance to connect, if present
 

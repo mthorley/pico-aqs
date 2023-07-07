@@ -5,8 +5,11 @@
 #include <OXRS_MQTT.h>
 #include <MqttLogger.h>
 #include "OXRS_API.h"
+#include "OXRS_LOG.h"
 
 #include "Credentials.h" // FIXME:
+
+static const char* _LOG_PREFIX = "[OXRS_IO_PICO] ";
 
 // Supported firmware config and command schemas
 DynamicJsonDocument _fwConfigSchema(JSON_CONFIG_MAX_SIZE);
@@ -52,31 +55,31 @@ void _mqttDisconnected(int state) {
   switch (state)
   {
   case MQTT_CONNECTION_TIMEOUT:
-    _logger.println(F("[pico] mqtt connection timeout"));
+    LOG_DEBUG(F("mqtt connection timeout"));
     break;
   case MQTT_CONNECTION_LOST:
-    _logger.println(F("[pico] mqtt connection lost"));
+    LOG_DEBUG(F("mqtt connection lost"));
     break;
   case MQTT_CONNECT_FAILED:
-    _logger.println(F("[pico] mqtt connect failed"));
+    LOG_DEBUG(F("mqtt connect failed"));
     break;
   case MQTT_DISCONNECTED:
-    _logger.println(F("[pico] mqtt disconnected"));
+    LOG_DEBUG(F("mqtt disconnected"));
     break;
   case MQTT_CONNECT_BAD_PROTOCOL:
-    _logger.println(F("[pico] mqtt bad protocol"));
+    LOG_DEBUG(F("mqtt bad protocol"));
     break;
   case MQTT_CONNECT_BAD_CLIENT_ID:
-    _logger.println(F("[pico] mqtt bad client id"));
+    LOG_DEBUG(F("mqtt bad client id"));
     break;
   case MQTT_CONNECT_UNAVAILABLE:
-    _logger.println(F("[pico] mqtt unavailable"));
+    LOG_DEBUG(F("mqtt unavailable"));
     break;
   case MQTT_CONNECT_BAD_CREDENTIALS:
-    _logger.println(F("[pico] mqtt bad credentials"));
+    LOG_DEBUG(F("mqtt bad credentials"));
     break;
   case MQTT_CONNECT_UNAUTHORIZED:
-    _logger.println(F("[pico] mqtt unauthorised"));
+    LOG_DEBUG(F("mqtt unauthorised"));
     break;
   }
 }
@@ -105,16 +108,16 @@ void _mqttCallback(char *topic, uint8_t *payload, unsigned int length) {
   switch (state)
   {
     case MQTT_RECEIVE_ZERO_LENGTH:
-      _logger.println("[picow] empty mqtt payload received");
+      LOG_DEBUG(F("empty mqtt payload received"));
       break;
     case MQTT_RECEIVE_JSON_ERROR:
-      _logger.println("[picow] failed to deserialise mqtt json payload");
+      LOG_ERROR(F("failed to deserialise mqtt json payload"));
       break;
     case MQTT_RECEIVE_NO_CONFIG_HANDLER:
-      _logger.println("[picow] no mqtt config handler");
+      LOG_DEBUG(F("no mqtt config handler"));
       break;
     case MQTT_RECEIVE_NO_COMMAND_HANDLER:
-      _logger.println("[picow] no mqtt command handler");
+      LOG_DEBUG(F("no mqtt command handler"));
       break;
   }
 }
@@ -122,6 +125,8 @@ void _mqttCallback(char *topic, uint8_t *payload, unsigned int length) {
 void OXRS_IO_PICO::initialiseMqtt(byte *mac) {
   // NOTE: this must be called *before* initialising the REST API since
   // that will load MQTT config from file, which has precendence
+
+  LOG_DEBUG(F("initialiseMqtt"));
 
   // Set the default ClientID to last 3 bytes of the MAC address
   char clientId[32];
@@ -143,6 +148,8 @@ void OXRS_IO_PICO::initialiseRestApi() {
   // the default client id, which has lower precedence that MQTT
   // settings stored in file and loaded by the API
 
+  LOG_DEBUG(F("initialiseRestApi"));
+
   // Set up REST API
   _api.begin();
 
@@ -162,8 +169,7 @@ void network_connect() {
   int status;
   while (status != WL_CONNECTED) {
 
-      Serial.print("Attempting to connect to WPA SSID: ");
-      Serial.println(WIFI_SSID);
+      LOGF_DEBUG("Attempting to connect to WPA SSID: %s", WIFI_SSID);
 
       // Connect to WPA/WPA2 network:
       status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // Set these credentials
@@ -173,16 +179,15 @@ void network_connect() {
   }
 
   if (status == WL_CONNECTED) {
-    Serial.println("Connected to");
-    Serial.println(WIFI_SSID);
+      LOGF_INFO("Connected to WPA SSID: %s", WIFI_SSID);
   }
 
-  Serial.println(WiFi.localIP());
-  Serial.println(WiFi.macAddress());
+  LOGF_INFO("Device IPv4: %s MAC: %s", WiFi.localIP().toString().c_str(), WiFi.macAddress().c_str());
 }
 
 void OXRS_IO_PICO::initialiseNetwork(byte* mac) {
   
+  LOG_DEBUG(F("initialiseNetwork"));
 /*  WiFi.macAddress(mac);
 
   // Format the MAC address for logging
@@ -342,6 +347,8 @@ void OXRS_IO_PICO::apiAdoptCallback(JsonVariant json) {
 }
 
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command) {
+
+  LOG_DEBUG(F("begin"));
 
   // Get our firmware details
   DynamicJsonDocument json(128);

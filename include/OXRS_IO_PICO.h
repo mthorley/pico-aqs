@@ -4,7 +4,7 @@
 #include <OXRS_MQTT.h>
 
 /*
-Utility class to enable OXRS API,  MQTT libraries and 
+Utility class to enable OXRS API, MQTT libraries and 
 OXRS Admin UI for any PICOw based device.
 */
 class OXRS_IO_PICO {

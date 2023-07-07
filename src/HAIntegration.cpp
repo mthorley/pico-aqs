@@ -3,6 +3,7 @@
 
 #include <ArduinoHA.h>
 #include <WiFi.h>
+#include "OXRS_LOG.h"
 
 //Adapted via:
 //  https://github.com/dawidchyrzynski/arduino-home-assistant/blob/main/examples/nano33iot/nano33iot.ino
@@ -14,6 +15,8 @@ HADevice device;
 HAMqtt mqtt(client, device);
 HASwitch led("led");
 HANumber publishFrequency("publishfreq");
+
+static const char* _LOG_PREFIX = "[HAIntegration] ";
 
 void HAIntegration::configure() {
 
@@ -45,10 +48,9 @@ void HAIntegration::configure() {
     publishFrequency.setMin(0);
     publishFrequency.setUnitOfMeasurement("secs");
 
-    Serial.print("Connecting to MQTT\n");
     
     if (mqtt.begin(MQTT_BROKER, MQTT_LOGIN, MQTT_PASSWORD) == true) {
-        Serial.print("Connected to MQTT broker");
+        LOGF_INFO("Connected to MQTT broker: %s", MQTT_BROKER.toString().c_str());
     } else {
         Serial.print("Could not connect to MQTT broker");
     }

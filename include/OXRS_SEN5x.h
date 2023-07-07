@@ -22,6 +22,8 @@ public:
         _tempOffset_celsius(0),
         _lastPublishTelemetry_ms(0) {};
 
+    typedef uint16_t Error_t;
+
     void begin(TwoWire& wire);
     void loop();
 
@@ -40,11 +42,15 @@ private:
     inline static const String PUBLISH_TELEMETERY_SECONDS   = "publishTelemetrySeconds";
     inline static const String TEMPERATURE_OFFSET           = "temperatureOffsetCelsius";
 
-    uint16_t measure(SEN5x_telemetry_t& t);
-    
+    void logTelemetry(SEN5x_telemetry_t& t);
+    void logError(Error_t error, const char* s);
+
+    void setTemperatureOffset();
+    Error_t getMeasurements(SEN5x_telemetry_t& t);
+
     uint32_t _publishTelemetry_ms;
     uint32_t _lastPublishTelemetry_ms;
-    int8_t _tempOffset_celsius;
+    float_t  _tempOffset_celsius;
 
     SensirionI2CSen5x _sensor;
 };
