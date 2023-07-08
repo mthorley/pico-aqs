@@ -28,18 +28,36 @@ bool SEN5xDeviceStatus::hasIssue() const
     return warnOrError;
 }
 
-// return all messages for any type (info, warn, error)
-void SEN5xDeviceStatus::getAllMessages(String& msg) const
+void SEN5xDeviceStatus::logStatus()
 {
+    bool warnOrError = false;
     std::bitset<32> b(_register);
-    for (auto iter = _pstatusConfig->begin(); iter!=_pstatusConfig->end(); iter++) {
-        if (b[iter->second.bit_no]==1) {
-            String line(enumTypetoString[iter->second.type]);
-            line += ": ";
-            line += iter->second.msg;
-            msg += line;
+
+    // iterate through all status config bits
+    for (auto iter = _pstatusConfig->begin(); iter != _pstatusConfig->end(); iter++)
+    {
+        // is status bit set?
+        if (b[iter->second.bit_no] == 1)
+        {
+            String msg(iter->second.msg);
+            switch (iter->second.type) {
+              case error:
+                LOG_ERROR(msg);
+                warnOrError = true;
+                break;
+              case warn:
+                LOG_WARN(msg);
+                warnOrError = true;
+                break;
+              case info:
+                LOG_INFO(msg);
+                break;
+            }
         }
     }
+
+    if (!warnOrError)
+        LOG_INFO(F("Device status ok"));
 }
 
 void SEN5xDeviceStatus::setConfig(device_t t)

@@ -32,21 +32,20 @@ public:
     void onConfig(JsonVariant json);
     void setConfigSchema(JsonVariant json);
 
-    void printToSerial(SEN5x_telemetry_t& t);
-
-    void checkDeviceStatus();
-    void printModuleVersions();
-    void printSerialNumber();
-
 private:
     inline static const String PUBLISH_TELEMETERY_SECONDS   = "publishTelemetrySeconds";
     inline static const String TEMPERATURE_OFFSET           = "temperatureOffsetCelsius";
 
     void logTelemetry(SEN5x_telemetry_t& t);
-    void logError(Error_t error, const char* s);
+    void logParameter(const char* name, float f);
+    void logError(Error_t error, const __FlashStringHelper* s);
+    float round2dp(float f) const;
 
-    void setTemperatureOffset();
+    Error_t getSerialNumber(String& serialNo);
+    Error_t getModuleVersions(String& sensorNameVersion);
     Error_t getMeasurements(SEN5x_telemetry_t& t);
+    Error_t checkDeviceStatus();
+    void setTemperatureOffset();
 
     uint32_t _publishTelemetry_ms;
     uint32_t _lastPublishTelemetry_ms;

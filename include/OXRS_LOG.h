@@ -146,7 +146,7 @@ public:
     }
 
 private:
-    LogLevel_t _currentLevel;
+    LogLevel_t   _currentLevel;
     SerialLogger _serial;
     //SysLogger _sysLog;    // https://github.com/arcao/Syslog/blob/master/src/Syslog.cpp
     //MqttLogger _mqttLog;
