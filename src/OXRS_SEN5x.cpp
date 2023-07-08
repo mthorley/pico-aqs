@@ -1,3 +1,8 @@
+/**
+ * 
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #include "OXRS_SEN5x.h"
 #include "SEN5xDeviceStatus.h"
 #include "OXRS_LOG.h"
@@ -16,8 +21,18 @@ void OXRS_SEN5x::begin(TwoWire& wire)
 
 // Print SEN55 module information if i2c buffers are large enough
 #ifdef USE_PRODUCT_INFO
-    printSerialNumber();
-    printModuleVersions();
+//FIXME: 
+// [OXRS_SEN5x] [ERROR] Error trying to execute getSerialNumber():  Can't execute this command on this board, internal I2C buffer is too small
+    String serialNo;
+    error = getSerialNumber(serialNo);
+    if (!error) 
+        LOG_INFO(serialNo);
+
+// [OXRS_SEN5x] [ERROR] Error trying to execute getProductName(): Can't execute this command on this board, internal I2C buffer is too small
+    String moduleVersions;
+    error = getModuleVersions(moduleVersions);
+    if (!error)
+        LOG_INFO(moduleVersions);
 #endif
 
     // Adjust tempOffset to account for additional temperature offsets
@@ -122,6 +137,7 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
     // Reset timer
     _lastPublishTelemetry_ms = millis();
 
+    // check devicestatus register
     checkDeviceStatus();
   }
 }
@@ -133,7 +149,7 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::getSerialNumber(String& serialNo)
 
     Error_t error = _sensor.getSerialNumber(serialNumber, serialNumberSize);
     if (error) {
-        logError(error, F("Error trying to execute getSerialNumber(): "));
+        logError(error, F("Error trying to execute getSerialNumber():"));
         return error;
     }
     else {
@@ -149,7 +165,7 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::getModuleVersions(String& sensorNameVersion)
 
     Error_t error = _sensor.getProductName(productName, productNameSize);
     if (error) {
-        logError(error, F("Error trying to execute getProductName(): "));
+        logError(error, F("Error trying to execute getProductName():"));
         return error;
     }
 
@@ -163,7 +179,7 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::getModuleVersions(String& sensorNameVersion)
     error = _sensor.getVersion(firmwareMajor, firmwareMinor, firmwareDebug,
         hardwareMajor, hardwareMinor, protocolMajor, protocolMinor);
     if (error) {
-        logError(error, F("Error trying to execute getVersion(): "));
+        logError(error, F("Error trying to execute getVersion():"));
         return error;
     }
 
@@ -181,7 +197,7 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::checkDeviceStatus()
     uint32_t reg;
     Error_t error = _sensor.readDeviceStatus(reg);
     if (error) {
-        logError(error, F("Failed to read device status "));
+        logError(error, F("Failed to read device status:"));
         return error;
     }
 
