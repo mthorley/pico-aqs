@@ -15,13 +15,13 @@ public:
 
   void setRegister(uint32_t _register);
   bool hasIssue() const;
-  void getAllMessages(String& msg) const;
+  void logStatus();
 
 private:
   void setConfig(device_t t);
 
   enum type_t { 
-    info=1, warn, error
+    info=0, warn, error
   };
 
   inline static const char *enumTypetoString[] = { 
