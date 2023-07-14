@@ -5,6 +5,7 @@
 
 class SEN5xDeviceStatus {
 public:
+// FIXME: this should be on OXRS_SEN5x
   enum device_t {
     sen50_sdn_t = 1,
     sen54_sdn_t,
@@ -20,8 +21,10 @@ public:
 private:
   void setConfig(device_t t);
 
-  enum type_t { 
-    info=0, warn, error
+  enum type_t {
+    info=0,
+    warn,
+    error
   };
 
   inline static const char *enumTypetoString[] = { 

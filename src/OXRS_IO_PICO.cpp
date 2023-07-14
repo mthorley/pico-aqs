@@ -1,3 +1,7 @@
+/**
+ * OXRS-IO-Generic-PICO-LIB
+ */
+
 #include "OXRS_IO_PICO.h"
 
 #include <WiFi.h>
@@ -249,25 +253,28 @@ void OXRS_IO_PICO::mergeJson(JsonVariant dst, JsonVariantConst src) {
   }
 }
 
-// FIXME:
 void OXRS_IO_PICO::getFirmwareJson(JsonVariant json) {
   JsonObject firmware = json.createNestedObject("firmware");
-  
-  firmware["name"]      = "Air Quality Sensor";
-  firmware["shortName"] = "AQS";
-  firmware["maker"]     = "RaspberryPi";
-  firmware["version"]   = "0.1";
+
+  firmware["name"]      = FW_NAME;
+  firmware["shortName"] = FW_SHORT_NAME;
+  firmware["maker"]     = FW_MAKER;
+  firmware["version"]   = FW_VERSION;
+
+#if defined(FW_GITHUB_URL)
+  firmware["githubUrl"] = FW_GITHUB_URL;
+#endif
 }
 
 void OXRS_IO_PICO::getSystemJson(JsonVariant json) {
   JsonObject system = json.createNestedObject("system");
 
-// FIXME:
   system["heapUsedBytes"] = rp2040.getUsedHeap();
   system["heapFreeBytes"] = rp2040.getFreeHeap();
   system["heapMaxAllocBytes"] = rp2040.getTotalHeap();
-  system["flashChipSizeBytes"] = 0; // TBD
+  system["flashChipSizeBytes"] = PICO_FLASH_SIZE_BYTES;
 
+// FIXME:
   system["sketchSpaceUsedBytes"] = 0;
   system["sketchSpaceTotalBytes"] = 0;
 
@@ -295,7 +302,7 @@ void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json) {
 
   // config schema metadata
   configSchema["$schema"] = JSON_SCHEMA_VERSION;
-  configSchema["title"] = "Air Quality Sensor - Sensirion 5x";
+  configSchema["title"] = FW_SHORT_NAME;
   configSchema["type"] = "object";
 
   JsonObject properties = configSchema.createNestedObject("properties");
@@ -304,6 +311,18 @@ void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json) {
   if (!_fwConfigSchema.isNull()) {
     mergeJson(properties, _fwConfigSchema.as<JsonVariant>());
   }
+
+//TODO:
+  /*// Home Assistant discovery config
+  JsonObject hassDiscoveryEnabled = properties.createNestedObject("hassDiscoveryEnabled");
+  hassDiscoveryEnabled["title"] = "Home Assistant Discovery";
+  hassDiscoveryEnabled["description"] = "Publish Home Assistant discovery config (defaults to 'false`).";
+  hassDiscoveryEnabled["type"] = "boolean";
+
+  JsonObject hassDiscoveryTopicPrefix = properties.createNestedObject("hassDiscoveryTopicPrefix");
+  hassDiscoveryTopicPrefix["title"] = "Home Assistant Discovery Topic Prefix";
+  hassDiscoveryTopicPrefix["description"] = "Prefix for the Home Assistant discovery topic (defaults to 'homeassistant`).";
+  hassDiscoveryTopicPrefix["type"] = "string";*/
 }
 
 void OXRS_IO_PICO::setConfigSchema(JsonVariant json) {
@@ -317,7 +336,7 @@ void OXRS_IO_PICO::getCommandSchemaJson(JsonVariant json) {
 
   // command schema metadata
   commandSchema["$schema"] = JSON_SCHEMA_VERSION;
-  commandSchema["title"] = "pico";
+  commandSchema["title"] = FW_SHORT_NAME;
   commandSchema["type"] = "object";
 
   JsonObject properties = commandSchema.createNestedObject("properties");

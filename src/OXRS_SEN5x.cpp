@@ -62,6 +62,7 @@ void OXRS_SEN5x::loop()
     }
     else {
         if (current_offset != _tempOffset_celsius) {
+            // tempoffset has changed, update sensor
             setTemperatureOffset();
         }
     }
@@ -78,32 +79,10 @@ void OXRS_SEN5x::setTemperatureOffset()
     }
 }
 
-// Log telemetry to loggers
-void OXRS_SEN5x::logTelemetry(SEN5x_telemetry_t& t)
-{
-    LOGF_DEBUG("MassConcentrationPm1p0:%.02f, MassConcentrationPm2p5:%.02f, MassConcentrationPm4p0:%.02f, MassConcentrationPm10p0:%.02f",
-        t.pm1p0, t.pm2p5, t.pm4p0, t.pm10p0);
-    logParameter("AmbientHumidity", t.humidityPercent);
-    logParameter("AmbientTemperature", t.tempCelsuis);
-    logParameter("VocIndex", t.vocIndex);
-    logParameter("NoxIndex", t.noxIndex);
-}
-
-// Logs SEN5x parameter even if NaN
-void OXRS_SEN5x::logParameter(const char* name, float f)
-{
-    if (isnan(f)) {
-        LOGF_DEBUG("%s:n/a", name);
-    }
-    else {
-        LOGF_DEBUG("%s:%.02f", name, f);
-    }
-}
-
 float OXRS_SEN5x::round2dp(float f) const
 {
-    float value = (int)(f * 100 + .5);
-    return (float)value / 100;
+    float value = std::round(f * 100.0) / 100.0;
+    return value;
 }
 
 // Get telemetry from AQS
@@ -123,6 +102,12 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
         logError(error, F("Failed to get measurements"));
     } 
     else {
+// TODO: Filter these attributes by the sensor model
+// From sensirion i2c README
+// - SEN50 (only particulate matter signals available)
+// - SEN54 (no NOx signal available)
+// - SEN55 (full feature set)
+
         json["pm1p0"]  = round2dp(t.pm1p0);
         json["pm2p5"]  = round2dp(t.pm2p5);
         json["pm4p0"]  = round2dp(t.pm4p0);
@@ -131,12 +116,16 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
         json["temp"]   = round2dp(t.tempCelsuis);
         json["vox"]    = round2dp(t.vocIndex);
         json["nox"]    = round2dp(t.noxIndex);
-        logTelemetry(t);
+
+        String jsonAsString;
+        serializeJson(json, jsonAsString);
+        LOGF_DEBUG("%s", jsonAsString.c_str());
     }
 
     // Reset timer
     _lastPublishTelemetry_ms = millis();
 
+// FIXME: check device status should be before getMeasurements && only if no issues should getMeasurements proceed?
     // check devicestatus register
     checkDeviceStatus();
   }
@@ -210,9 +199,9 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::checkDeviceStatus()
 
 void OXRS_SEN5x::onConfig(JsonVariant json) 
 {
-    if (json.containsKey(PUBLISH_TELEMETERY_SECONDS))
+    if (json.containsKey(PUBLISH_TELEMETERY))
     {
-        _publishTelemetry_ms = json[PUBLISH_TELEMETERY_SECONDS].as<uint32_t>() * 1000L;
+        _publishTelemetry_ms = json[PUBLISH_TELEMETERY].as<uint32_t>() * 1000L;
         LOGF_INFO("Set config publish telemetry ms to %" PRIu32 "", _publishTelemetry_ms);
     }
     if (json.containsKey(TEMPERATURE_OFFSET))
@@ -222,9 +211,45 @@ void OXRS_SEN5x::onConfig(JsonVariant json)
     }
 }
 
+void OXRS_SEN5x::onCommand(JsonVariant json)
+{
+    if (json.containsKey(RESET_COMMAND) && json[RESET_COMMAND].as<bool>())
+    {
+        LOG_INFO(F("Sensor reset command"));
+        Error_t error = _sensor.deviceReset();
+        if (error)
+            logError(error, F("Error reseting sensor"));
+    }
+    if (json.containsKey(FANCLEAN_COMMAND) && json[FANCLEAN_COMMAND].as<bool>())
+    {
+        LOG_INFO(F("Fanclean command"));
+        Error_t error = _sensor.startFanCleaning();
+        if (error)
+            logError(error, F("Error starting fan cleaning"));
+    }
+    else {
+//            if (fancleaning)
+//                cancel fan cleaning
+    }
+}
+
+void OXRS_SEN5x::setCommandSchema(JsonVariant command)
+{
+  JsonObject resetsensor = command.createNestedObject(RESET_COMMAND);
+  resetsensor["title"] = "Reset Sensirion sensor";
+  resetsensor["type"] = "boolean";
+
+  JsonObject fanclean = command.createNestedObject(FANCLEAN_COMMAND);
+  fanclean["title"] = "Start fan cleaning (default is weekly).";
+  fanclean["type"] = "boolean";
+
+// TODO
+    // add cleardevicestatus
+}
+
 void OXRS_SEN5x::setConfigSchema(JsonVariant config) 
 {
-  JsonObject publishTelemetry = config.createNestedObject(PUBLISH_TELEMETERY_SECONDS);
+  JsonObject publishTelemetry = config.createNestedObject(PUBLISH_TELEMETERY);
   publishTelemetry["title"] = "Publish Telemetry Frequency (seconds)";
   publishTelemetry["description"] = \
     "How often to publish telemetry from the air quality sensor attached to your device \
@@ -235,9 +260,9 @@ Must be a number between 0 and 86400 (i.e. 1 day).";
   publishTelemetry["maximum"] = 86400;
 
   JsonObject temperatureOffset = config.createNestedObject(TEMPERATURE_OFFSET);
-  temperatureOffset["title"] = "Temperature offset (C)";
+  temperatureOffset["title"] = "Temperature offset (°C)";
   temperatureOffset["description"] = \
-    "Temperature offset in Celsuis. Default 0.";
+    "Temperature offset in Celsuis. Default 0. Must be a number between -10 and 10.";
   temperatureOffset["type"] = "integer";
   temperatureOffset["minimum"] = -10;
   temperatureOffset["maximum"] = 10;

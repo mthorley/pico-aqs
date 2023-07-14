@@ -55,9 +55,6 @@ void SEN5xDeviceStatus::logStatus()
             }
         }
     }
-
-    if (!warnOrError)
-        LOG_INFO(F("Device status ok"));
 }
 
 void SEN5xDeviceStatus::setConfig(device_t t)

@@ -18,9 +18,6 @@ Refactoring steps:
 
 HAIntegration integration;
 
-//local variables
-char _fwVersion[40] = "<No Version>";
-
 // Sensirion air quality sensor
 OXRS_SEN5x oxrsSen5x;
 
@@ -47,12 +44,25 @@ void setConfigSchema()
 }
 
 void jsonCommand(JsonVariant json) {
-  // EMPTY for now
-  // fan cleaning? 
-  // reset device
+  oxrsSen5x.onCommand(json);
+  LOG_DEBUG(F("jsonCommand called"));
 }
 
-void setup() {
+void setCommandSchema()
+{
+  // Define our command schema
+  StaticJsonDocument<4096> json;
+  JsonVariant commands = json.as<JsonVariant>();
+
+  // get command schema for Sensirion sensor
+  oxrsSen5x.setCommandSchema(commands);
+
+  // pass our command schema down to the PICO library
+  OXRS_IO_PICO::setCommandSchema(commands);
+}
+
+void setup()
+{
   Serial.begin();
 
   Wire.begin();
@@ -66,7 +76,7 @@ void setup() {
 
   // set up config/command schema for self discovery and adoption
   setConfigSchema();
-  //setCommandSchema();
+  setCommandSchema();
 
   // FIXME:
   // add any custom apis
@@ -78,10 +88,12 @@ void setup() {
   oxrsSen5x.begin(Wire);
 }
 
-void loop() {
+void loop()
+{
   integration.loop();
 
   OXRS_IO_PICO::loop();
+
   oxrsSen5x.loop();
 
   DynamicJsonDocument telemetry(4096);

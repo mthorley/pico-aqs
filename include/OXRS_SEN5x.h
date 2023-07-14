@@ -30,14 +30,16 @@ public:
     void getTelemetry(JsonVariant json);
 
     void onConfig(JsonVariant json);
+    void onCommand(JsonVariant json);
     void setConfigSchema(JsonVariant json);
+    void setCommandSchema(JsonVariant json);
 
 private:
-    inline static const String PUBLISH_TELEMETERY_SECONDS   = "publishTelemetrySeconds";
-    inline static const String TEMPERATURE_OFFSET           = "temperatureOffsetCelsius";
+    inline static const String PUBLISH_TELEMETERY = "publishTelemetrySeconds";
+    inline static const String TEMPERATURE_OFFSET = "temperatureOffsetCelsius";
+    inline static const String RESET_COMMAND      = "resetCommand";
+    inline static const String FANCLEAN_COMMAND   = "fanCleanCommand";
 
-    void logTelemetry(SEN5x_telemetry_t& t);
-    void logParameter(const char* name, float f);
     void logError(Error_t error, const __FlashStringHelper* s);
     float round2dp(float f) const;
 
