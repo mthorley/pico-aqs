@@ -35,10 +35,10 @@ public:
     void setCommandSchema(JsonVariant json);
 
 private:
-    inline static const String PUBLISH_TELEMETERY = "publishTelemetrySeconds";
-    inline static const String TEMPERATURE_OFFSET = "temperatureOffsetCelsius";
-    inline static const String RESET_COMMAND      = "resetCommand";
-    inline static const String FANCLEAN_COMMAND   = "fanCleanCommand";
+    inline static const String PUBLISH_TELEMETRY_FREQ = "publishTelemetrySeconds";
+    inline static const String TEMPERATURE_OFFSET     = "temperatureOffsetCelsius";
+    inline static const String RESET_COMMAND          = "resetCommand";
+    inline static const String FANCLEAN_COMMAND       = "fanCleanCommand";
 
     void logError(Error_t error, const __FlashStringHelper* s);
     float round2dp(float f) const;
@@ -48,6 +48,7 @@ private:
     Error_t getMeasurements(SEN5x_telemetry_t& t);
     Error_t checkDeviceStatus();
     void setTemperatureOffset();
+    void initialiseDevice();
 
     uint32_t _publishTelemetry_ms;
     uint32_t _lastPublishTelemetry_ms;
