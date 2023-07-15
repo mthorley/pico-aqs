@@ -26,7 +26,7 @@ static const char* _LOG_PREFIX = "[main] ";
 void jsonConfig(JsonVariant json) 
 {
   oxrsSen5x.onConfig(json);
-  LOG_DEBUG(F("jsonConfig called"));
+  LOG_DEBUG(F("jsonConfig complete"));
 }
 
 // template
@@ -45,7 +45,7 @@ void setConfigSchema()
 
 void jsonCommand(JsonVariant json) {
   oxrsSen5x.onCommand(json);
-  LOG_DEBUG(F("jsonCommand called"));
+  LOG_DEBUG(F("jsonCommand complete"));
 }
 
 void setCommandSchema()
@@ -78,7 +78,6 @@ void setup()
   setConfigSchema();
   setCommandSchema();
 
-  // FIXME:
   // add any custom apis
   //addCustomApis();
 
