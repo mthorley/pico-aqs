@@ -216,7 +216,6 @@ void OXRS_IO_PICO::initialiseNetwork(byte* mac) {
 }
 
 void OXRS_IO_PICO::loop() {
-
   // check network connection
   if (isNetworkConnected()) {
     
@@ -348,7 +347,7 @@ void OXRS_IO_PICO::getCommandSchemaJson(JsonVariant json) {
 
   // Restart command
   JsonObject restart = properties.createNestedObject("restart");
-  restart["title"] = "Restart";
+  restart["title"] = "Restart Pico";
   restart["type"] = "boolean";
 }
 
@@ -366,7 +365,6 @@ void OXRS_IO_PICO::apiAdoptCallback(JsonVariant json) {
 }
 
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command) {
-
   LOG_DEBUG(F("begin"));
 
   // Get our firmware details
