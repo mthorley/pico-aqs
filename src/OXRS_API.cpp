@@ -54,7 +54,8 @@ boolean _eraseWifiCreds()
     WiFi.disconnect(true);
     WiFi.persistent(false);
   #else
-//    WiFi.enableSTA(true);                 // mzt
+// FIXME:
+//    WiFi.enableSTA(true);                 // mzt raise PR
 //    WiFi.disconnect(true, true);
   #endif
   
@@ -476,7 +477,7 @@ void OXRS_API::_checkRestart(void)
 #if defined(ESP)
     ESP.restart();
 #else // FIXME: get pico/rpi define
-    rp2040.restart(); // mzt 
+    rp2040.restart(); // mzt raise PR
 #endif
 }
 }
