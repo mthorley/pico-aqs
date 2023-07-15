@@ -83,10 +83,8 @@ void OXRS_SEN5x::setTemperatureOffset()
     }
 }
 
-float OXRS_SEN5x::round2dp(float f) const
-{
-    float value = std::round(f * 100.0) / 100.0;
-    return value;
+double OXRS_SEN5x::round2dp(double value) const {
+   return (int)(value * 100 + 0.5) / 100.0;
 }
 
 // Get telemetry from AQS

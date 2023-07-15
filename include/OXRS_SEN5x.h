@@ -41,7 +41,7 @@ private:
     inline static const String FANCLEAN_COMMAND       = "fanCleanCommand";
 
     void logError(Error_t error, const __FlashStringHelper* s);
-    float round2dp(float f) const;
+    double round2dp(double d) const;
 
     Error_t getSerialNumber(String& serialNo);
     Error_t getModuleVersions(String& sensorNameVersion);
