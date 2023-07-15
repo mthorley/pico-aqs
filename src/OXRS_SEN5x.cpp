@@ -35,12 +35,16 @@ void OXRS_SEN5x::begin(TwoWire& wire)
         LOG_INFO(moduleVersions);
 #endif
 
+    initialiseDevice();
+}
+
+void OXRS_SEN5x::initialiseDevice() {
     // Adjust tempOffset to account for additional temperature offsets
     // exceeding the SEN module's self heating.
     setTemperatureOffset();
 
     // Start Measurement
-    error = _sensor.startMeasurement();
+    Error_t error = _sensor.startMeasurement();
     if (error) {
         logError(error, F("Error trying to execute startMeasurement():"));
     }
@@ -87,7 +91,7 @@ float OXRS_SEN5x::round2dp(float f) const
 
 // Get telemetry from AQS
 void OXRS_SEN5x::getTelemetry(JsonVariant json)
-{
+{   
   // Do not publish if telemetry has been disabled
   if (_publishTelemetry_ms == 0)
     return;
@@ -199,9 +203,9 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::checkDeviceStatus()
 
 void OXRS_SEN5x::onConfig(JsonVariant json) 
 {
-    if (json.containsKey(PUBLISH_TELEMETERY))
+    if (json.containsKey(PUBLISH_TELEMETRY_FREQ))
     {
-        _publishTelemetry_ms = json[PUBLISH_TELEMETERY].as<uint32_t>() * 1000L;
+        _publishTelemetry_ms = json[PUBLISH_TELEMETRY_FREQ].as<uint32_t>() * 1000L;
         LOGF_INFO("Set config publish telemetry ms to %" PRIu32 "", _publishTelemetry_ms);
     }
     if (json.containsKey(TEMPERATURE_OFFSET))
@@ -215,10 +219,12 @@ void OXRS_SEN5x::onCommand(JsonVariant json)
 {
     if (json.containsKey(RESET_COMMAND) && json[RESET_COMMAND].as<bool>())
     {
-        LOG_INFO(F("Sensor reset command"));
+        LOG_INFO(F("Resetting sensor"));
         Error_t error = _sensor.deviceReset();
         if (error)
             logError(error, F("Error reseting sensor"));
+        initialiseDevice();
+        return;
     }
     if (json.containsKey(FANCLEAN_COMMAND) && json[FANCLEAN_COMMAND].as<bool>())
     {
@@ -226,6 +232,7 @@ void OXRS_SEN5x::onCommand(JsonVariant json)
         Error_t error = _sensor.startFanCleaning();
         if (error)
             logError(error, F("Error starting fan cleaning"));
+        return;
     }
     else {
 //            if (fancleaning)
@@ -236,20 +243,19 @@ void OXRS_SEN5x::onCommand(JsonVariant json)
 void OXRS_SEN5x::setCommandSchema(JsonVariant command)
 {
   JsonObject resetsensor = command.createNestedObject(RESET_COMMAND);
-  resetsensor["title"] = "Reset Sensirion sensor";
+  resetsensor["title"] = "Reset Sen5x Sensor";
   resetsensor["type"] = "boolean";
 
   JsonObject fanclean = command.createNestedObject(FANCLEAN_COMMAND);
-  fanclean["title"] = "Start fan cleaning (default is weekly).";
+  fanclean["title"] = "Start Fan Cleaning (default is weekly).";
   fanclean["type"] = "boolean";
-
 // TODO
     // add cleardevicestatus
 }
 
 void OXRS_SEN5x::setConfigSchema(JsonVariant config) 
 {
-  JsonObject publishTelemetry = config.createNestedObject(PUBLISH_TELEMETERY);
+  JsonObject publishTelemetry = config.createNestedObject(PUBLISH_TELEMETRY_FREQ);
   publishTelemetry["title"] = "Publish Telemetry Frequency (seconds)";
   publishTelemetry["description"] = \
     "How often to publish telemetry from the air quality sensor attached to your device \
