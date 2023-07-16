@@ -40,7 +40,7 @@ private:
     inline static const String CLEAR_DEVICESTATUS_COMMAND = "clearDeviceStatusCommand";
 
     void logError(Error_t error, const __FlashStringHelper* s);
-    double round2dp(double d) const;
+    double round2dp(float d) const;
 
     Error_t getSerialNumber(String& serialNo);
     Error_t getModuleVersions(String& sensorNameVersion);
@@ -49,11 +49,11 @@ private:
     void setTemperatureOffset();
     void initialiseDevice();
 
-    uint32_t _publishTelemetry_ms;
-    uint32_t _lastPublishTelemetry_ms;
-    float_t  _tempOffset_celsius;
+    uint32_t _publishTelemetry_ms;          // how often publish
+    uint32_t _lastPublishTelemetry_ms;      // last time published since start
+    float_t  _tempOffset_celsius;           // temperature offset
 
-    SensirionI2CSen5x _sensor;
-    SEN5x_model_t     _model;
-    SEN5xDeviceStatus _deviceStatus;
+    SensirionI2CSen5x _sensor;              // i2c library
+    SEN5x_model_t     _model;               // sensor model
+    SEN5xDeviceStatus _deviceStatus;        // sensor device status
 };

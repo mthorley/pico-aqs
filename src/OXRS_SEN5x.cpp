@@ -94,7 +94,7 @@ void OXRS_SEN5x::setTemperatureOffset()
     }
 }
 
-double OXRS_SEN5x::round2dp(double value) const {
+double OXRS_SEN5x::round2dp(float value) const {
     return (std::isnan(value)) ? 0 : (int)(value * 100 + 0.5) / 100.0;
 }
 
@@ -157,13 +157,13 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
     json["pm10p0"] = round2dp(t.pm10p0);
 
     if (_model!=SEN50) {
-        json["hum"]    = round2dp(t.humidityPercent);
-        json["temp"]   = round2dp(t.tempCelsuis);
-        json["vox"]    = round2dp(t.vocIndex);
+        json["hum"]  = round2dp(t.humidityPercent);
+        json["temp"] = round2dp(t.tempCelsuis);
+        json["vox"]  = round2dp(t.vocIndex);
     }
 
     if (_model==SEN55)
-        json["nox"]    = round2dp(t.noxIndex);
+        json["nox"] = round2dp(t.noxIndex);
 
     if (ISLOG_DEBUG) {
         String jsonAsString;
