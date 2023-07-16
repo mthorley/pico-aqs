@@ -44,31 +44,38 @@ private:
 
   typedef std::map<const std::string, const statusbit_t> configmap_t;
 
-  // status register configuration 
+  inline static uint8_t FANSPEED_BIT    = 21;
+  inline static uint8_t FANCLEANING_BIT = 19;
+  inline static uint8_t GASSENSOR_BIT   = 7;
+  inline static uint8_t RHT_BIT         = 6;
+  inline static uint8_t LASER_BIT       = 5;
+  inline static uint8_t FANFAILURE_BIT  = 4;
+
+  // status register configuration
   // https://sensirion.com/media/documents/6791EFA0/62A1F68F/Sensirion_Datasheet_Environmental_Node_SEN5x.pdf
   inline static const configmap_t statusConfig55 {
-    {"fan_speed_range", statusbit_t(21, "Fan speed is too high or too low. Automatically cleared once target speed reached.", type_t::warn)},
-    {"fan_cleaning_active", statusbit_t(19, "Automatic fan cleaning in progress.", type_t::info)},
-    {"gas_sensor", statusbit_t(7, "Gas sensor error (either VOC and/or NOx).", type_t::error)},
-    {"rht_comms_error", statusbit_t(6, "Relative humidity temperature sensor internal communication error.", type_t::error)},
-    {"laser", statusbit_t(5, "Laser is switched on and current is out of range.", type_t::error)},
-    {"fan_failure", statusbit_t(4, "Fan failure, fan is mechanically blocked or broken.", type_t::error)}
+    {"fan_speed_range", statusbit_t(FANSPEED_BIT, "Fan speed is too high or too low. Automatically cleared once target speed reached.", type_t::warn)},
+    {"fan_cleaning_active", statusbit_t(FANCLEANING_BIT, "Automatic fan cleaning in progress.", type_t::info)},
+    {"gas_sensor", statusbit_t(GASSENSOR_BIT, "Gas sensor error (either VOC and/or NOx).", type_t::error)},
+    {"rht_comms_error", statusbit_t(RHT_BIT, "Relative humidity temperature sensor internal communication error.", type_t::error)},
+    {"laser", statusbit_t(LASER_BIT, "Laser is switched on and current is out of range.", type_t::error)},
+    {"fan_failure", statusbit_t(FANFAILURE_BIT, "Fan failure, fan is mechanically blocked or broken.", type_t::error)}
   };
 
   inline static const configmap_t statusConfig54 {
-    {"fan_speed_range", statusbit_t(21, "Fan speed is too high or too low. Automatically cleared once target speed reached.", type_t::warn)},
-    {"fan_cleaning_active", statusbit_t(19, "Automatic fan cleaning in progress.", type_t::info)},
-    {"gas_sensor", statusbit_t(7, "Gas sensor error for VOC.", type_t::error)},
-    {"rht_comms_error", statusbit_t(6, "Relative humidity temperature sensor internal communication error.", type_t::error)},
-    {"laser", statusbit_t(5, "Laser is switched on and current is out of range.", type_t::error)},
-    {"fan_failure", statusbit_t(4, "Fan failure, fan is mechanically blocked or broken.", type_t::error)}
+    {"fan_speed_range", statusbit_t(FANSPEED_BIT, "Fan speed is too high or too low. Automatically cleared once target speed reached.", type_t::warn)},
+    {"fan_cleaning_active", statusbit_t(FANCLEANING_BIT, "Automatic fan cleaning in progress.", type_t::info)},
+    {"gas_sensor", statusbit_t(GASSENSOR_BIT, "Gas sensor error for VOC.", type_t::error)},
+    {"rht_comms_error", statusbit_t(RHT_BIT, "Relative humidity temperature sensor internal communication error.", type_t::error)},
+    {"laser", statusbit_t(LASER_BIT, "Laser is switched on and current is out of range.", type_t::error)},
+    {"fan_failure", statusbit_t(FANFAILURE_BIT, "Fan failure, fan is mechanically blocked or broken.", type_t::error)}
   };
 
   inline static const configmap_t statusConfig50 {
-    {"fan_speed_range", statusbit_t(21, "Fan speed is too high or too low. Automatically cleared once target speed reached.", type_t::warn)},
-    {"fan_cleaning_active", statusbit_t(19, "Automatic fan cleaning in progress.", type_t::info)},
-    {"laser", statusbit_t(5, "Laser is switched on and current is out of range.", type_t::error)},
-    {"fan_failure", statusbit_t(4, "Fan failure, fan is mechanically blocked or broken.", type_t::error)}
+    {"fan_speed_range", statusbit_t(FANSPEED_BIT, "Fan speed is too high or too low. Automatically cleared once target speed reached.", type_t::warn)},
+    {"fan_cleaning_active", statusbit_t(FANCLEANING_BIT, "Automatic fan cleaning in progress.", type_t::info)},
+    {"laser", statusbit_t(LASER_BIT, "Laser is switched on and current is out of range.", type_t::error)},
+    {"fan_failure", statusbit_t(FANFAILURE_BIT, "Fan failure, fan is mechanically blocked or broken.", type_t::error)}
   };
 
   const configmap_t* _pstatusConfig;

@@ -30,12 +30,11 @@ bool SEN5xDeviceStatus::hasIssue() const
 
 bool SEN5xDeviceStatus::isFanCleaningActive() const {
   std::bitset<32> b(_register);
-  return b[19];
+  return b[FANCLEANING_BIT];
 }
 
 void SEN5xDeviceStatus::logStatus() const
 {
-    bool warnOrError = false;
     std::bitset<32> b(_register);
 
     // iterate through all status config bits
@@ -48,11 +47,9 @@ void SEN5xDeviceStatus::logStatus() const
             switch (iter->second.type) {
               case error:
                 LOG_ERROR(msg);
-                warnOrError = true;
                 break;
               case warn:
                 LOG_WARN(msg);
-                warnOrError = true;
                 break;
               case info:
                 LOG_INFO(msg);
