@@ -17,6 +17,8 @@
 #define LOGF_FATAL(fmt, ...)    Logger().logf(OXRS_LOG::LogLevel_t::FATAL, _LOG_PREFIX, fmt, __VA_ARGS__)
 #define LOGF_DEBUG(fmt, ...)    Logger().logf(OXRS_LOG::LogLevel_t::DEBUG, _LOG_PREFIX, fmt, __VA_ARGS__)
 
+#define ISLOG_DEBUG     (Logger().getLevel()==OXRS_LOG::LogLevel_t::DEBUG)
+
 // Abstracts underying loggers: mqtt, serial, loki, syslog etc
 class OXRS_LOG {
 public:
@@ -74,6 +76,10 @@ public:
     {
         _loggers.push_back(&_serial);
     };
+
+    LogLevel_t getLevel() {
+        return _currentLevel;
+    }
 
     void setLevel(LogLevel_t level)
     {

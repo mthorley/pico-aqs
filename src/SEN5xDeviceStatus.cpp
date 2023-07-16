@@ -3,9 +3,9 @@
 
 static const char* _LOG_PREFIX = "[SEN5xDeviceStatus] ";
 
-SEN5xDeviceStatus::SEN5xDeviceStatus(device_t device)
+SEN5xDeviceStatus::SEN5xDeviceStatus(SEN5x_model_t model)
 {
-    setConfig(device);
+    setConfig(model);
 };
 
 // set device status register
@@ -28,7 +28,12 @@ bool SEN5xDeviceStatus::hasIssue() const
     return warnOrError;
 }
 
-void SEN5xDeviceStatus::logStatus()
+bool SEN5xDeviceStatus::isFanCleaningActive() const {
+  std::bitset<32> b(_register);
+  return b[19];
+}
+
+void SEN5xDeviceStatus::logStatus() const
 {
     bool warnOrError = false;
     std::bitset<32> b(_register);
@@ -57,12 +62,12 @@ void SEN5xDeviceStatus::logStatus()
     }
 }
 
-void SEN5xDeviceStatus::setConfig(device_t t)
+void SEN5xDeviceStatus::setConfig(SEN5x_model_t model)
 {
-    switch(t) {
-      case sen50_sdn_t:
+    switch(model) {
+      case SEN50:
         _pstatusConfig = &statusConfig50;
-      case sen54_sdn_t:
+      case SEN54:
         _pstatusConfig = &statusConfig54;
       default:
         _pstatusConfig = &statusConfig55;

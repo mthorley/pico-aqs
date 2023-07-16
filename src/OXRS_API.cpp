@@ -413,7 +413,7 @@ void OXRS_API::loop(Client * client)
   {
     _app.process(client);
     client->stop();
-  }    
+  }
 }
 
 void OXRS_API::get(const char * path, Router::Middleware * middleware)
@@ -437,7 +437,7 @@ JsonVariant OXRS_API::getAdopt(JsonVariant json)
   { 
     _apiAdopt(json);
   }
-  
+
   return json;
 }
 
@@ -445,7 +445,7 @@ void OXRS_API::_initialiseRestApi(void)
 {
   // /api router
   _app.use("/api", &_api);
-  
+
   // enable cors for all api requests
   _api.options(&_apiCorsOptions);
   _api.get(&_apiCors);

@@ -1,16 +1,7 @@
-/*
-
-Refactoring steps:
-- moving average for pmxyz measurements
-- add commands reset device, fan cleaning etc
-- Extend AQSSensiron to deal with Sensiron devices below Sen5x where telemetry is missing
-
-*/
 #include <Arduino.h>
 #include <WiFi.h>
 
 #include "HAIntegration.h"
-#include "Credentials.h"
 
 #include <OXRS_IO_PICO.h>
 #include "OXRS_SEN5x.h"
@@ -19,7 +10,7 @@ Refactoring steps:
 HAIntegration integration;
 
 // Sensirion air quality sensor
-OXRS_SEN5x oxrsSen5x;
+OXRS_SEN5x oxrsSen5x(SEN5x_model_t::SEN55);
 
 static const char* _LOG_PREFIX = "[main] ";
 

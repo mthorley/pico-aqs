@@ -3,23 +3,23 @@
 #include <bitset>
 #include <map>
 
+typedef enum  {
+    SEN50 = 1,
+    SEN54,
+    SEN55
+} SEN5x_model_t;
+
 class SEN5xDeviceStatus {
 public:
-// FIXME: this should be on OXRS_SEN5x
-  enum device_t {
-    sen50_sdn_t = 1,
-    sen54_sdn_t,
-    sen55_sdn_t
-  };
-
-  SEN5xDeviceStatus(device_t device);
+  SEN5xDeviceStatus(SEN5x_model_t model);
 
   void setRegister(uint32_t _register);
   bool hasIssue() const;
-  void logStatus();
+  void logStatus() const;
+  bool isFanCleaningActive() const;
 
 private:
-  void setConfig(device_t t);
+  void setConfig(SEN5x_model_t model);
 
   enum type_t {
     info=0,

@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <SensirionI2CSen5x.h>
 #include <Wire.h>
+#include "SEN5xDeviceStatus.h"
 
 typedef struct {
     float pm1p0;
@@ -17,10 +18,7 @@ typedef struct {
 
 class OXRS_SEN5x {
 public:
-    OXRS_SEN5x() : 
-        _publishTelemetry_ms(10000),
-        _tempOffset_celsius(0),
-        _lastPublishTelemetry_ms(0) {};
+    OXRS_SEN5x(SEN5x_model_t model);
 
     typedef uint16_t Error_t;
 
@@ -35,10 +33,11 @@ public:
     void setCommandSchema(JsonVariant json);
 
 private:
-    inline static const String PUBLISH_TELEMETRY_FREQ = "publishTelemetrySeconds";
-    inline static const String TEMPERATURE_OFFSET     = "temperatureOffsetCelsius";
-    inline static const String RESET_COMMAND          = "resetCommand";
-    inline static const String FANCLEAN_COMMAND       = "fanCleanCommand";
+    inline static const String PUBLISH_TELEMETRY_FREQ     = "publishTelemetrySeconds";
+    inline static const String TEMPERATURE_OFFSET         = "temperatureOffsetCelsius";
+    inline static const String RESET_COMMAND              = "resetCommand";
+    inline static const String FANCLEAN_COMMAND           = "fanCleanCommand";
+    inline static const String CLEAR_DEVICESTATUS_COMMAND = "clearDeviceStatusCommand";
 
     void logError(Error_t error, const __FlashStringHelper* s);
     double round2dp(double d) const;
@@ -46,7 +45,7 @@ private:
     Error_t getSerialNumber(String& serialNo);
     Error_t getModuleVersions(String& sensorNameVersion);
     Error_t getMeasurements(SEN5x_telemetry_t& t);
-    Error_t checkDeviceStatus();
+    Error_t refreshDeviceStatus();
     void setTemperatureOffset();
     void initialiseDevice();
 
@@ -55,4 +54,6 @@ private:
     float_t  _tempOffset_celsius;
 
     SensirionI2CSen5x _sensor;
+    SEN5x_model_t     _model;
+    SEN5xDeviceStatus _deviceStatus;
 };

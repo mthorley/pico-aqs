@@ -12,7 +12,6 @@ OXRS Admin UI for any PICOw based device.
 */
 class OXRS_IO_PICO {
 public:
-
   static void apiAdoptCallback(JsonVariant json);
 
   static void setConfigSchema(JsonVariant json);
@@ -22,6 +21,8 @@ public:
   static void loop();
 
   static void publishTelemetry(JsonVariant telemetry);
+
+  inline static const String RESTART_COMMAND = "restart";
 
 private:
   static void initialiseRestApi();

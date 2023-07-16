@@ -31,7 +31,7 @@ OXRS_MQTT _mqtt(_mqttClient);
 OXRS_API _api(_mqtt);
 
 // Logging (topic updated once MQTT connects successfully)
-MqttLogger _logger(_mqttClient, "log", MqttLoggerMode::MqttAndSerial);
+MqttLogger _logger(_mqttClient, "log", MqttLoggerMode::MqttOnly);
 
 // MQTT callbacks wrapped by _mqttConfig/_mqttCommand
 jsonCallback _onConfig;
@@ -97,7 +97,7 @@ void _mqttConfig(JsonVariant json) {
 
 void _mqttCommand(JsonVariant json) {
   // Core restart command
-  if (json.containsKey("restart") && json["restart"].as<bool>()) {
+  if (json.containsKey(OXRS_IO_PICO::RESTART_COMMAND) && json[OXRS_IO_PICO::RESTART_COMMAND].as<bool>()) {
     rp2040.restart();
   }
 
@@ -346,7 +346,7 @@ void OXRS_IO_PICO::getCommandSchemaJson(JsonVariant json) {
   }
 
   // Restart command
-  JsonObject restart = properties.createNestedObject("restart");
+  JsonObject restart = properties.createNestedObject(RESTART_COMMAND);
   restart["title"] = "Restart Pico";
   restart["type"] = "boolean";
 }
