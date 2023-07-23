@@ -41,11 +41,19 @@ private:
 
     void logError(Error_t error, const __FlashStringHelper* s);
     double round2dp(float d) const;
+    JsonVariant findNestedKey(JsonObject obj, const String& key);
+    String getModelName() const;
 
     Error_t getSerialNumber(String& serialNo);
     Error_t getModuleVersions(String& sensorNameVersion);
     Error_t getMeasurements(SEN5x_telemetry_t& t);
     Error_t refreshDeviceStatus();
+
+    // commands
+    void resetSensor();
+    void fanClean();
+    void clearDeviceStatus();
+
     void setTemperatureOffset();
     void initialiseDevice();
 
