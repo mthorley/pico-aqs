@@ -1,7 +1,7 @@
 #include "SEN5xDeviceStatus.h"
 #include "OXRS_LOG.h"
 
-static const char* _LOG_PREFIX = "[SEN5xDeviceStatus] ";
+static const char *_LOG_PREFIX = "[SEN5xDeviceStatus] ";
 
 SEN5xDeviceStatus::SEN5xDeviceStatus(SEN5x_model_t model)
 {
@@ -21,16 +21,18 @@ bool SEN5xDeviceStatus::hasIssue() const
     bool warnOrError = false;
 
     // iterate through all status config bits
-    for (auto iter = _pstatusConfig->begin(); iter!=_pstatusConfig->end(); iter++) {
-        if (iter->second.type==warn || iter->second.type==error)
-        warnOrError |= b[iter->second.bit_no];
+    for (auto iter = _pstatusConfig->begin(); iter != _pstatusConfig->end(); iter++)
+    {
+        if (iter->second.type == warn || iter->second.type == error)
+            warnOrError |= b[iter->second.bit_no];
     }
     return warnOrError;
 }
 
-bool SEN5xDeviceStatus::isFanCleaningActive() const {
-  std::bitset<32> b(_register);
-  return b[FANCLEANING_BIT];
+bool SEN5xDeviceStatus::isFanCleaningActive() const
+{
+    std::bitset<32> b(_register);
+    return b[FANCLEANING_BIT];
 }
 
 void SEN5xDeviceStatus::logStatus() const
@@ -44,14 +46,15 @@ void SEN5xDeviceStatus::logStatus() const
         if (b[iter->second.bit_no] == 1)
         {
             String msg(iter->second.msg);
-            switch (iter->second.type) {
-              case error:
+            switch (iter->second.type)
+            {
+            case error:
                 LOG_ERROR(msg);
                 break;
-              case warn:
+            case warn:
                 LOG_WARN(msg);
                 break;
-              case info:
+            case info:
                 LOG_INFO(msg);
                 break;
             }
@@ -61,12 +64,13 @@ void SEN5xDeviceStatus::logStatus() const
 
 void SEN5xDeviceStatus::setConfig(SEN5x_model_t model)
 {
-    switch(model) {
-      case SEN50:
+    switch (model)
+    {
+    case SEN50:
         _pstatusConfig = &statusConfig50;
-      case SEN54:
+    case SEN54:
         _pstatusConfig = &statusConfig54;
-      default:
+    default:
         _pstatusConfig = &statusConfig55;
     }
 }

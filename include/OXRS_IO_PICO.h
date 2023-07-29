@@ -7,36 +7,42 @@
 #include <OXRS_MQTT.h>
 
 /*
-Utility class to enable OXRS API, MQTT libraries and 
+Utility class to enable OXRS API, MQTT libraries and
 OXRS Admin UI for any PICOw based device.
 */
-class OXRS_IO_PICO {
+class OXRS_IO_PICO
+{
 public:
-  static void apiAdoptCallback(JsonVariant json);
+    OXRS_IO_PICO();
 
-  static void setConfigSchema(JsonVariant json);
-  static void setCommandSchema(JsonVariant json);
+    static void apiAdoptCallback(JsonVariant json);
 
-  static void begin(jsonCallback config, jsonCallback command);
-  static void loop();
+    void setConfigSchema(JsonVariant json);
+    void setCommandSchema(JsonVariant json);
 
-  static void publishTelemetry(JsonVariant telemetry);
+    void begin(jsonCallback config, jsonCallback command);
+    void loop();
 
-  inline static const String RESTART_COMMAND = "restart";
+    void publishTelemetry(JsonVariant telemetry);
+
+    inline static const String RESTART_COMMAND     = "restart";
 
 private:
-  static void initialiseRestApi();
-  static void initialiseNetwork(byte* mac);
-  static void initialiseMqtt(byte *mac);
+    void initialiseRestApi();
+    void initialiseNetwork(byte *mac);
+    void initialiseMqtt(byte *mac);
+    void initialiseWatchdog();
 
-  static boolean isNetworkConnected();
+    static boolean isNetworkConnected();
 
-  // config helpers
-  static void getFirmwareJson(JsonVariant json);
-  static void getSystemJson(JsonVariant json);
-  static void getNetworkJson(JsonVariant json);
-  static void getConfigSchemaJson(JsonVariant json);
-  static void getCommandSchemaJson(JsonVariant json);
-  static void mergeJson(JsonVariant dst, JsonVariantConst src);
+    // config helpers
+    static void getFirmwareJson(JsonVariant json);
+    static void getSystemJson(JsonVariant json);
+    static void getNetworkJson(JsonVariant json);
+    static void getConfigSchemaJson(JsonVariant json);
+    static void getCommandSchemaJson(JsonVariant json);
+    static void mergeJson(JsonVariant dst, JsonVariantConst src);
+    static JsonVariant findNestedKey(JsonObject obj, const String &key);
 
+    static void getConfigSchemaLogging(JsonVariant json);
 };

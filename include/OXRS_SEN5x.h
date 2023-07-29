@@ -33,11 +33,18 @@ public:
     void setCommandSchema(JsonVariant json);
 
 private:
-    inline static const String PUBLISH_TELEMETRY_FREQ     = "publishTelemetrySeconds";
-    inline static const String TEMPERATURE_OFFSET         = "temperatureOffsetCelsius";
-    inline static const String RESET_COMMAND              = "resetCommand";
-    inline static const String FANCLEAN_COMMAND           = "fanCleanCommand";
-    inline static const String CLEAR_DEVICESTATUS_COMMAND = "clearDeviceStatusCommand";
+    // defaults
+    inline static const uint32_t DEFAULT_PUBLISH_TELEMETRY_MS = 10000;
+    inline static const int8_t   DEFAULT_TEMP_OFFSET_C        = 0;
+
+    // OXRS config items
+    inline static const String PUBLISH_TELEMETRY_FREQ_CONFIG  = "publishTelemetrySeconds";
+    inline static const String TEMPERATURE_OFFSET_CONFIG      = "temperatureOffsetCelsius";
+
+    // OXRS command items
+    inline static const String RESET_COMMAND                  = "resetCommand";
+    inline static const String FANCLEAN_COMMAND               = "fanCleanCommand";
+    inline static const String CLEAR_DEVICESTATUS_COMMAND     = "clearDeviceStatusCommand";
 
     void logError(Error_t error, const __FlashStringHelper* s);
     double round2dp(float d) const;
