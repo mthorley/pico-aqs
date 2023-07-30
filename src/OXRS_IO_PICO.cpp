@@ -99,7 +99,7 @@ void _mqttConfig(JsonVariant json)
     JsonVariant jvLoglevel = OXRS_IO_PICO::findNestedKey(json, "loglevel");
     if (!jvLoglevel.isNull()) {
         String sLoglevel(jvLoglevel.as<String>().c_str());
-        OXRS_IO_PICO::setLogLevelComamnd(sLoglevel);
+        OXRS_IO_PICO::setLogLevelCommand(sLoglevel);
     }
 
     // Pass on to the firmware callback
