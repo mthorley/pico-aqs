@@ -62,8 +62,6 @@ void setup()
 
     Wire.begin();
 
-    Logger().setLevel(OXRS_LOG::DEBUG);
-
     delay(250); // Give the serial terminal a chance to connect, if present
 
     // jsonConfig and jsonCommand are callbacks invoked when the admin API/UI updates

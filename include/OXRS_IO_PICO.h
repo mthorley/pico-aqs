@@ -25,6 +25,9 @@ public:
 
     void publishTelemetry(JsonVariant telemetry);
 
+    static JsonVariant findNestedKey(JsonObject obj, const String &key);
+    static void setLogLevelCommand(const String& level);
+
     inline static const String RESTART_COMMAND     = "restart";
 
 private:
@@ -42,7 +45,6 @@ private:
     static void getConfigSchemaJson(JsonVariant json);
     static void getCommandSchemaJson(JsonVariant json);
     static void mergeJson(JsonVariant dst, JsonVariantConst src);
-    static JsonVariant findNestedKey(JsonObject obj, const String &key);
 
     static void getConfigSchemaLogging(JsonVariant json);
 };

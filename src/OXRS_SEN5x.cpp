@@ -79,8 +79,7 @@ void OXRS_SEN5x::loop()
             logError(error, F("Failed to getTemperatureOffsetSimple():"));
         }
         else {
-            if (current_offset != _tempOffset_celsius)
-            {
+            if (current_offset != _tempOffset_celsius) {
                 // tempoffset has changed, update sensor
                 setTemperatureOffset();
             }
@@ -356,20 +355,17 @@ void OXRS_SEN5x::clearDeviceStatus()
 
 void OXRS_SEN5x::onCommand(JsonVariant json)
 {
-    if (json.containsKey(RESET_COMMAND) && json[RESET_COMMAND].as<bool>())
-    {
+    if (json.containsKey(RESET_COMMAND) && json[RESET_COMMAND].as<bool>()) {
         resetSensor();
         return;
     }
 
-    if (json.containsKey(FANCLEAN_COMMAND) && json[FANCLEAN_COMMAND].as<bool>())
-    {
+    if (json.containsKey(FANCLEAN_COMMAND) && json[FANCLEAN_COMMAND].as<bool>()) {
         fanClean();
         return;
     }
 
-    if (json.containsKey(CLEAR_DEVICESTATUS_COMMAND) && json[CLEAR_DEVICESTATUS_COMMAND].as<bool>())
-    {
+    if (json.containsKey(CLEAR_DEVICESTATUS_COMMAND) && json[CLEAR_DEVICESTATUS_COMMAND].as<bool>()) {
         clearDeviceStatus();
         return;
     }
@@ -378,16 +374,16 @@ void OXRS_SEN5x::onCommand(JsonVariant json)
 void OXRS_SEN5x::setCommandSchema(JsonVariant command)
 {
     JsonObject resetSensor = command.createNestedObject(RESET_COMMAND);
-    resetSensor["title"] = "Reset SEN5x Sensor";
-    resetSensor["type"] = "boolean";
+    resetSensor["title"]   = "Reset SEN5x Sensor";
+    resetSensor["type"]    = "boolean";
 
     JsonObject fanClean = command.createNestedObject(FANCLEAN_COMMAND);
-    fanClean["title"] = "Start Fan Cleaning (default is weekly)";
-    fanClean["type"] = "boolean";
+    fanClean["title"]   = "Start Fan Cleaning (default is weekly)";
+    fanClean["type"]    = "boolean";
 
     JsonObject clearDevice = command.createNestedObject(CLEAR_DEVICESTATUS_COMMAND);
-    clearDevice["title"] = "Clear DeviceStatus Register";
-    clearDevice["type"] = "boolean";
+    clearDevice["title"]   = "Clear DeviceStatus Register";
+    clearDevice["type"]    = "boolean";
 }
 
 String OXRS_SEN5x::getModelName() const
@@ -408,19 +404,19 @@ String OXRS_SEN5x::getModelName() const
 
 void OXRS_SEN5x::setConfigSchema(JsonVariant config)
 {
-    JsonObject model = config.createNestedObject("model");
-    model["title"] = "Model";
+    JsonObject model     = config.createNestedObject("model");
+    model["title"]       = "Model";
     model["description"] = "Connected air quality sensor model.";
-    model["type"] = "string";
-    model["default"] = getModelName();
-    model["readOnly"] = true;
+    model["type"]        = "string";
+    model["default"]     = getModelName();
+    model["readOnly"]    = true;
 
     JsonObject publishTelemetry = config.createNestedObject(PUBLISH_TELEMETRY_FREQ_CONFIG);
-    publishTelemetry["title"] = "Publish Telemetry Frequency (seconds)";
+    publishTelemetry["title"]   = "Publish Telemetry Frequency (seconds)";
     publishTelemetry["description"] =
         "How often to publish telemetry from the air quality sensor \
 (setting to 0 disables telemetry capture). Must be a number between 0 and 86400 (i.e. 1 day).";
-    publishTelemetry["type"] = "integer";
+    publishTelemetry["type"]    = "integer";
     publishTelemetry["minimum"] = 0;
     publishTelemetry["maximum"] = 86400;
     publishTelemetry["default"] = (uint32_t)_publishTelemetry_ms / 1000.0;
@@ -428,9 +424,9 @@ void OXRS_SEN5x::setConfigSchema(JsonVariant config)
     if (_model != SEN50)
     {
         JsonObject temperatureOffset = config.createNestedObject(TEMPERATURE_OFFSET_CONFIG);
-        temperatureOffset["title"] = "Temperature Offset (°C)";
+        temperatureOffset["title"]   = "Temperature Offset (°C)";
         temperatureOffset["description"] = "Temperature offset in Celsuis. Default 0. Must be a number between -10 and 10.";
-        temperatureOffset["type"] = "integer";
+        temperatureOffset["type"]    = "integer";
         temperatureOffset["minimum"] = -10;
         temperatureOffset["maximum"] = 10;
         temperatureOffset["default"] = _tempOffset_celsius;

@@ -1,5 +1,5 @@
 /**
- * OXRS-IO-Generic-PICO-LIB
+ * OXRS-IO-Generic-PICOW-LIB
  * TODO: Confirm naming convention here.
  */
 
@@ -7,7 +7,6 @@
 #include <WiFi.h>
 #include <LittleFS.h>
 #include <OXRS_MQTT.h>
-#include <MqttLogger.h>
 #include "OXRS_API.h"
 #include <OXRS_LOG.h>
 #include "OXRS_IO_PICO.h"
@@ -28,13 +27,14 @@ WiFiClient _client;
 
 // MQTT client
 PubSubClient _mqttClient(_client);
-OXRS_MQTT _mqtt(_mqttClient);
+OXRS_MQTT    _mqtt(_mqttClient);
 
 // REST API
 OXRS_API _api(_mqtt);
 
-// Logging (topic updated once MQTT connects successfully)
-MqttLogger _logger(_mqttClient, "log", MqttLoggerMode::MqttOnly);
+// Logging
+OXRS_LOG::MQTTLogger _mqttLogger(_mqttClient, "log"); // Logging (topic updated once MQTT connects successfully)
+OXRS_LOG::SysLogger  _sysLogger("picow", "192.168.3.26");
 
 // MQTT callbacks wrapped by _mqttConfig/_mqttCommand
 jsonCallback _onConfig;
@@ -47,15 +47,14 @@ void _apiAdoptCallback(JsonVariant json)
 
 void _mqttConnected()
 {
-    // MqttLogger doesn't copy the logging topic to an internal
-    // buffer so we have to use a static array here
+    // update log topic
     static char logTopic[64];
-    _logger.setTopic(_mqtt.getLogTopic(logTopic));
+    _mqttLogger.setTopic(_mqtt.getLogTopic(logTopic));
 
     DynamicJsonDocument json(JSON_ADOPT_MAX_SIZE);
     _mqtt.publishAdopt(_api.getAdopt(json.as<JsonVariant>()));
 
-    _logger.println("[pico] mqtt connected");
+    LOG_INFO(F("mqtt connected"));
 }
 
 void _mqttDisconnected(int state)
@@ -96,6 +95,13 @@ void _mqttDisconnected(int state)
 
 void _mqttConfig(JsonVariant json)
 {
+    // Process log config changes
+    JsonVariant jvLoglevel = OXRS_IO_PICO::findNestedKey(json, "loglevel");
+    if (!jvLoglevel.isNull()) {
+        String sLoglevel(jvLoglevel.as<String>().c_str());
+        OXRS_IO_PICO::setLogLevelComamnd(sLoglevel);
+    }
+
     // Pass on to the firmware callback
     if (_onConfig)
     {
@@ -138,7 +144,10 @@ void _mqttCallback(char *topic, uint8_t *payload, unsigned int length)
     }
 }
 
-OXRS_IO_PICO::OXRS_IO_PICO() {};
+OXRS_IO_PICO::OXRS_IO_PICO() 
+{
+
+};
 
 void OXRS_IO_PICO::initialiseMqtt(byte *mac)
 {
@@ -356,12 +365,14 @@ void OXRS_IO_PICO::getConfigSchemaLogging(JsonVariant json)
 
     JsonObject logLevel  = logProps.createNestedObject("loglevel");
     logLevel["title"]    = "Log Level";
-    logLevel["default"]  = Logger().getLevel();
+    logLevel["default"]  = oxrsLog.getLevel();
 
     JsonArray logEnum = logLevel.createNestedArray("enum");
-    logEnum.add("INFO");
     logEnum.add("DEBUG");
+    logEnum.add("INFO");
+    logEnum.add("WARN");
     logEnum.add("ERROR");
+    logEnum.add("FATAL");
 }
 
 void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json)
@@ -429,6 +440,20 @@ void OXRS_IO_PICO::apiAdoptCallback(JsonVariant json)
     getCommandSchemaJson(json);
 }
 
+void OXRS_IO_PICO::setLogLevelCommand(const String& sLogLevel)
+{
+    if (sLogLevel=="DEBUG")
+        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::DEBUG);
+    if (sLogLevel=="INFO")
+        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::INFO);
+    if (sLogLevel=="WARN")
+        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::WARN);
+    if (sLogLevel=="ERROR")
+        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::ERROR);
+    if (sLogLevel=="FATAL")
+        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::FATAL);
+}
+
 void OXRS_IO_PICO::initialiseWatchdog()
 {
 #ifdef __WATCHDOG
@@ -445,6 +470,11 @@ void OXRS_IO_PICO::initialiseWatchdog()
 
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
 {
+// FIXME: depends on config
+    // add MQTT and other logging
+    oxrsLog.addLogger(&_sysLogger);
+    oxrsLog.addLogger(&_mqttLogger);
+
     LOG_DEBUG(F("begin"));
 
     // get our firmware details
