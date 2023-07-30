@@ -27,7 +27,7 @@ void OXRS_LOG::setLevel(LogLevel_t level)
 {
     _currentLevel = level;
     String logLine("Changed log level to ");
-    logLine.concat(_currentLevel);
+    logLine.concat(levelStr[_currentLevel]);
     log(INFO, "[OXRS_LOG] ", logLine);
 }
 
