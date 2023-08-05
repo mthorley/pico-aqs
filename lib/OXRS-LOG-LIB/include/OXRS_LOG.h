@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <WiFiUdp.h>
+#include <ArduinoJson.h>
 
 #define LOG_ERROR(s)  oxrsLog.log(OXRS_LOG::LogLevel_t::ERROR, _LOG_PREFIX, s)
 #define LOG_INFO(s)   oxrsLog.log(OXRS_LOG::LogLevel_t::INFO,  _LOG_PREFIX, s)
@@ -20,27 +21,6 @@
 #define LOGF_DEBUG(fmt, ...)  oxrsLog.logf(OXRS_LOG::LogLevel_t::DEBUG, _LOG_PREFIX, fmt, __VA_ARGS__)
 
 #define ISLOG_DEBUG     (oxrsLog.getLevel()==OXRS_LOG::LogLevel_t::DEBUG)
-
-#define MAX_PACKET_SIZE 256
-
-#define PRI_EMERGENCY 0
-#define PRI_ALERT     1
-#define PRI_CRITICAL  2
-#define PRI_ERROR     3
-#define PRI_WARNING   4
-#define PRI_NOTICE    5
-#define PRI_INFO      6
-#define PRI_DEBUG     7
-
-#define FAC_USER   1
-#define FAC_LOCAL0 16
-#define FAC_LOCAL1 17
-#define FAC_LOCAL2 18
-#define FAC_LOCAL3 19
-#define FAC_LOCAL4 20
-#define FAC_LOCAL5 21
-#define FAC_LOCAL6 22
-#define FAC_LOCAL7 23
 
 // Singleton that abstracts underying loggers: mqtt, serial, loki, syslog etc
 class OXRS_LOG {
@@ -71,28 +51,45 @@ public:
         " "
     };
 
-    // base class
+    void onConfig(JsonVariant json);
+    void setConfig(JsonVariant json);
+
+    //-----------------------------------------------------
+    // Base class
     class AbstractLogger {
     public:
         virtual void log(LogLevel_t level, const __FlashStringHelper* logLine)=0;
         virtual void log(LogLevel_t level, const char* logLine)=0;
         virtual void log(LogLevel_t level, String& logLine)=0;
+
+        virtual void onConfig(JsonVariant json)=0;
+        virtual void setConfig(JsonVariant json)=0;
+
+        bool isEnabled() const {
+            return _enable;
+        }
+
+        void setEnable(bool e) {
+            _enable = e;
+        }
+
+    private:
+        bool _enable;
     };
 
+    //-----------------------------------------------------
     // Serial port logger
     class SerialLogger : public AbstractLogger {
     public:
-        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine) {
-            Serial.println(logLine);
-        }
-        virtual void log(LogLevel_t level, const char* logLine) {
-            Serial.println(logLine);
-        }
-        virtual void log(LogLevel_t level, String& logLine) {
-            Serial.println(logLine);
-        }
+        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine);
+        virtual void log(LogLevel_t level, const char* logLine);
+        virtual void log(LogLevel_t level, String& logLine);
+
+        virtual void onConfig(JsonVariant json) {};
+        virtual void setConfig(JsonVariant json) {};
     };
 
+    //-----------------------------------------------------
     // MQTT logger
     class MQTTLogger : public AbstractLogger {
     public:
@@ -103,28 +100,23 @@ public:
             _topic = topic;
         }
 
-        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine) {
-            if (_client.connected()) {
-                String s(logLine);
-                _client.publish(_topic.c_str(), s.c_str());
-            }
-        }
-        virtual void log(LogLevel_t level, const char* logLine) {
-            if (_client.connected()) {
-                _client.publish(_topic.c_str(), logLine);
-            }
-        }
-        virtual void log(LogLevel_t level, String& logLine) {
-            if (_client.connected()) {
-                _client.publish(_topic.c_str(), logLine.c_str());
-            }
-        }
+        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine);
+        virtual void log(LogLevel_t level, const char* logLine);
+        virtual void log(LogLevel_t level, String& logLine);
+
+        virtual void onConfig(JsonVariant json);
+        virtual void setConfig(JsonVariant json);
+
+        inline static const char* TOPIC_CONFIG = "topic";
+        inline static const char* MQTTLOG_ENABLE = "mqttlog_enable";
 
     private:
         PubSubClient& _client;  // MQTT client
         String        _topic;   // log topic
     };
 
+    //-----------------------------------------------------
+    // Sys logger
     class SysLogger : public AbstractLogger {
     public:
         SysLogger(const char* hostname, const char* server, uint16_t port=514) :
@@ -133,63 +125,41 @@ public:
             _server(server),
             _port(port) {};
 
-        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine) {
-            uint8_t priority = getPriority(level);
+        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine);
+        virtual void log(LogLevel_t level, const char* logLine);
+        virtual void log(LogLevel_t level, String& logLine);
 
-            // This is a unit8 instead of a char because that's what udp.write() wants
-            uint8_t buffer[MAX_PACKET_SIZE];
-            String s(logLine);
-            int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s: %s", priority, _hostname.c_str(), _app.c_str(), s);
+        virtual void onConfig(JsonVariant json);
+        virtual void setConfig(JsonVariant json);
 
-            // Send the raw UDP packet
-            send(buffer, len);
-        }
-        virtual void log(LogLevel_t level, const char* logLine) {
-            uint8_t priority = getPriority(level);
+        inline static const char* SERVER_CONFIG = "server";
+        inline static const char* PORT_CONFIG   = "port";
+        inline static const char* SYSLOG_ENABLE = "syslog_enable";
 
-            // This is a unit8 instead of a char because that's what udp.write() wants
-            uint8_t buffer[MAX_PACKET_SIZE];
-            int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s: %s", priority, _hostname.c_str(), _app.c_str(), logLine);
+        inline static uint16_t MAX_PACKET_SIZE = 256;
 
-            // Send the raw UDP packet
-            send(buffer, len);
-        }
-        virtual void log(LogLevel_t level, String& logLine) {
-            uint8_t priority = getPriority(level);
+        inline static uint8_t PRI_EMERGENCY = 0;
+        inline static uint8_t PRI_ALERT     = 1;
+        inline static uint8_t PRI_CRITICAL  = 2;
+        inline static uint8_t PRI_ERROR     = 3;
+        inline static uint8_t PRI_WARNING   = 4;
+        inline static uint8_t PRI_NOTICE    = 5;
+        inline static uint8_t PRI_INFO      = 6;
+        inline static uint8_t PRI_DEBUG     = 7;
 
-            // This is a unit8 instead of a char because that's what udp.write() wants
-            uint8_t buffer[MAX_PACKET_SIZE];
-            int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s: %s", priority, _hostname.c_str(), _app.c_str(), logLine.c_str());
-
-            // Send the raw UDP packet
-            send(buffer, len);
-        }
+        inline static uint8_t FAC_USER   = 1;
+        inline static uint8_t FAC_LOCAL0 = 16;
+        inline static uint8_t FAC_LOCAL1 = 17;
+        inline static uint8_t FAC_LOCAL2 = 18;
+        inline static uint8_t FAC_LOCAL3 = 19;
+        inline static uint8_t FAC_LOCAL4 = 20;
+        inline static uint8_t FAC_LOCAL5 = 21;
+        inline static uint8_t FAC_LOCAL6 = 22;
+        inline static uint8_t FAC_LOCAL7 = 23;
 
     private:
-        void send(uint8_t* pBuffer, int len) 
-        {
-            _syslogger.beginPacket(_server.c_str(), _port);
-            _syslogger.write(pBuffer, len);
-            _syslogger.endPacket();
-        }
-
-        uint8_t getPriority(LogLevel_t level)
-        {
-            switch (level) {
-                case DEBUG:
-                    return PRI_DEBUG;
-                case INFO:
-                    return PRI_INFO;
-                case FATAL:
-                    return PRI_CRITICAL;
-                case ERROR:
-                    return PRI_ERROR;
-                case WARN:
-                    return PRI_WARNING;
-                default:
-                    return PRI_INFO;
-            }
-        }
+        void send(uint8_t* pBuffer, int len);
+        uint8_t getSeverity(LogLevel_t level);
 
         WiFiUDP  _syslogger;
         String   _hostname;
@@ -198,26 +168,9 @@ public:
         uint16_t _port;
     };
 
-    /*class LokiLogger : public AbstractLogger {
-    public:
-        virtual void log(LogLevel_t level, const __FlashStringHelper* logLine) {
-            // map stream as log, label as device name
-            //{
-            //    stream: "log",
-            //    label: "Sensirion55x-<clientID>"
-            //    msg: logEvent
-            //}
-        }
-        virtual void log(LogLevel_t level, const char* logLine) {
-            //Serial.println(s);
-        }
-        virtual void log(LogLevel_t level, String& logLine) {
-            //Serial.println(s);
-        }
-    };*/
-
-    LogLevel_t getLevel();
+    LogLevel_t getLevel() const;
     void setLevel(LogLevel_t level);
+    void setLogLevelCommand(const String& sLogLevel);
     void addLogger(AbstractLogger* pLogger);
 
     void logf(LogLevel_t level, const char* prefix, const char *fmt, ...);
@@ -225,12 +178,13 @@ public:
     void log(LogLevel_t level, const char* prefix, char* logEvent);
     void log(LogLevel_t level, const char* prefix, String& logEvent);
 
+    static JsonVariant findNestedKey(JsonObject obj, const String &key);
+
 private:
     OXRS_LOG();
 
     LogLevel_t   _currentLevel;
     SerialLogger _serial;
-    //SysLogger _sysLog;    // https://github.com/arcao/Syslog/blob/master/src/Syslog.cpp
     //LokiLogger _lokiLog;  // https://github.com/grafana/loki-arduino
     std::list<AbstractLogger*> _loggers;
 };

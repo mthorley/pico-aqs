@@ -95,12 +95,8 @@ void _mqttDisconnected(int state)
 
 void _mqttConfig(JsonVariant json)
 {
-    // Process log config changes
-    JsonVariant jvLoglevel = OXRS_IO_PICO::findNestedKey(json, "loglevel");
-    if (!jvLoglevel.isNull()) {
-        String sLoglevel(jvLoglevel.as<String>().c_str());
-        OXRS_IO_PICO::setLogLevelCommand(sLoglevel);
-    }
+    // parse any logging config updates
+    oxrsLog.onConfig(json);
 
     // Pass on to the firmware callback
     if (_onConfig)
@@ -356,25 +352,6 @@ void OXRS_IO_PICO::getNetworkJson(JsonVariant json)
     network["mac"] = mac_display;
 }
 
-void OXRS_IO_PICO::getConfigSchemaLogging(JsonVariant json)
-{
-    // Log level
-    JsonObject logConfig = json.createNestedObject("logging");
-    logConfig["title"]   = "Logging";
-    JsonObject logProps  = logConfig.createNestedObject("properties");
-
-    JsonObject logLevel  = logProps.createNestedObject("loglevel");
-    logLevel["title"]    = "Log Level";
-    logLevel["default"]  = oxrsLog.getLevel();
-
-    JsonArray logEnum = logLevel.createNestedArray("enum");
-    logEnum.add("DEBUG");
-    logEnum.add("INFO");
-    logEnum.add("WARN");
-    logEnum.add("ERROR");
-    logEnum.add("FATAL");
-}
-
 void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json)
 {
     JsonObject configSchema = json.createNestedObject("configSchema");
@@ -393,7 +370,7 @@ void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json)
     }
 
     // Append other config
-    getConfigSchemaLogging(props);
+    oxrsLog.setConfig(props);
 }
 
 void OXRS_IO_PICO::setConfigSchema(JsonVariant json)
@@ -440,20 +417,6 @@ void OXRS_IO_PICO::apiAdoptCallback(JsonVariant json)
     getCommandSchemaJson(json);
 }
 
-void OXRS_IO_PICO::setLogLevelCommand(const String& sLogLevel)
-{
-    if (sLogLevel=="DEBUG")
-        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::DEBUG);
-    if (sLogLevel=="INFO")
-        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::INFO);
-    if (sLogLevel=="WARN")
-        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::WARN);
-    if (sLogLevel=="ERROR")
-        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::ERROR);
-    if (sLogLevel=="FATAL")
-        oxrsLog.setLevel(OXRS_LOG::LogLevel_t::FATAL);
-}
-
 void OXRS_IO_PICO::initialiseWatchdog()
 {
 #ifdef __WATCHDOG
@@ -470,7 +433,6 @@ void OXRS_IO_PICO::initialiseWatchdog()
 
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
 {
-// FIXME: depends on config
     // add MQTT and other logging
     oxrsLog.addLogger(&_sysLogger);
     oxrsLog.addLogger(&_mqttLogger);

@@ -45,6 +45,4 @@ private:
     static void getConfigSchemaJson(JsonVariant json);
     static void getCommandSchemaJson(JsonVariant json);
     static void mergeJson(JsonVariant dst, JsonVariantConst src);
-
-    static void getConfigSchemaLogging(JsonVariant json);
 };
