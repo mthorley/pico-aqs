@@ -93,8 +93,8 @@ public:
     // MQTT logger
     class MQTTLogger : public AbstractLogger {
     public:
-        MQTTLogger(PubSubClient& client, const char *topic) :
-            _client(client), _topic(topic) {};
+        MQTTLogger(PubSubClient& client) :
+            _client(client), _topic("") {};
 
         void setTopic(const char* topic) {
             _topic = topic;
@@ -119,11 +119,11 @@ public:
     // Sys logger
     class SysLogger : public AbstractLogger {
     public:
-        SysLogger(const char* hostname, const char* server, uint16_t port=514) :
-            _hostname(hostname),
+        SysLogger() :
+            _hostname(""),
             _app(FW_SHORT_NAME),
-            _server(server),
-            _port(port) {};
+            _server(""),
+            _port(514) {};
 
         virtual void log(LogLevel_t level, const __FlashStringHelper* logLine);
         virtual void log(LogLevel_t level, const char* logLine);

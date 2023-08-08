@@ -7,9 +7,9 @@
 #include <WiFi.h>
 #include <LittleFS.h>
 #include <OXRS_MQTT.h>
-#include "OXRS_API.h"
+#include <OXRS_API.h>
 #include <OXRS_LOG.h>
-#include "OXRS_IO_PICO.h"
+#include <OXRS_IO_PICO.h>
 
 // #define __WATCHDOG
 
@@ -33,8 +33,8 @@ OXRS_MQTT    _mqtt(_mqttClient);
 OXRS_API _api(_mqtt);
 
 // Logging
-OXRS_LOG::MQTTLogger _mqttLogger(_mqttClient, "log"); // Logging (topic updated once MQTT connects successfully)
-OXRS_LOG::SysLogger  _sysLogger("picow", "192.168.3.26");
+OXRS_LOG::MQTTLogger _mqttLogger(_mqttClient);   // Logging (topic updated once MQTT connects successfully)
+OXRS_LOG::SysLogger  _sysLogger;                 // Updated on config
 
 // MQTT callbacks wrapped by _mqttConfig/_mqttCommand
 jsonCallback _onConfig;
@@ -194,7 +194,6 @@ void network_connect()
     int status;
     while (status != WL_CONNECTED)
     {
-
         LOGF_DEBUG("Attempting to connect to WPA SSID: %s", WIFI_SSID);
 
         // Connect to WPA/WPA2 network:
@@ -255,6 +254,11 @@ void OXRS_IO_PICO::loop()
 #ifdef __WATCHDOG
     watchdog_update();
 #endif
+}
+
+OXRS_MQTT* OXRS_IO_PICO::getMQTT()
+{
+    return &_mqtt;
 }
 
 void OXRS_IO_PICO::publishTelemetry(JsonVariant telemetry)

@@ -48,17 +48,16 @@ boolean _eraseWifiCreds()
     return true;
   
   // must be STA to disconnect/erase creds
-  #if defined(ESP8266)
+  #if defined(ESP8266) || defined(RASPBERRYPI_PICO)
     WiFi.mode(WIFI_STA);
     WiFi.persistent(true);
     WiFi.disconnect(true);
     WiFi.persistent(false);
   #else
-// FIXME:
-//    WiFi.enableSTA(true);                 // mzt raise PR
-//    WiFi.disconnect(true, true);
+    WiFi.enableSTA(true);
+    WiFi.disconnect(true, true);
   #endif
-  
+
   return true;
 }
 
@@ -476,10 +475,10 @@ void OXRS_API::_checkRestart(void)
   if (restart) {
 #if defined(ESP)
     ESP.restart();
-#else // FIXME: get pico/rpi define
-    rp2040.restart(); // mzt raise PR
+#elif defined(RASPBERRYPI_PICO)
+    rp2040.restart();
 #endif
-}
+  }
 }
 
 void OXRS_API::_checkDisconnect(void)

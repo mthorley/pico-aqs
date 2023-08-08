@@ -15,20 +15,22 @@ class OXRS_IO_PICO
 public:
     OXRS_IO_PICO();
 
-    static void apiAdoptCallback(JsonVariant json);
-
-    void setConfigSchema(JsonVariant json);
-    void setCommandSchema(JsonVariant json);
-
     void begin(jsonCallback config, jsonCallback command);
     void loop();
 
+    // Firmware can define the config/commands it supports - for device discovery and adoption
+    void setConfigSchema(JsonVariant json);
+    void setCommandSchema(JsonVariant json);
+
+    OXRS_MQTT* getMQTT(void);
+
+    static void apiAdoptCallback(JsonVariant json);
+
+    // Helper for publishing to tele/ topic
     void publishTelemetry(JsonVariant telemetry);
 
     static JsonVariant findNestedKey(JsonObject obj, const String &key);
-    static void setLogLevelCommand(const String& level);
-
-    inline static const String RESTART_COMMAND     = "restart";
+    inline static const String RESTART_COMMAND = "restart";
 
 private:
     void initialiseRestApi();
@@ -38,7 +40,7 @@ private:
 
     static boolean isNetworkConnected();
 
-    // config helpers
+    // Config helpers
     static void getFirmwareJson(JsonVariant json);
     static void getSystemJson(JsonVariant json);
     static void getNetworkJson(JsonVariant json);

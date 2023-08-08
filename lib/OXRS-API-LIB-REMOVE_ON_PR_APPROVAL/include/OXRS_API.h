@@ -21,7 +21,7 @@
 #include <ESP8266WiFi.h>
 #else
 #include <WiFi.h>
-#if defined(ESP)        //mzt - Update.h is provided by Arduino PICOw framework
+#if defined(ESP)
 #include <Update.h>
 #endif
 #endif

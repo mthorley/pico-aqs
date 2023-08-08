@@ -1,5 +1,5 @@
-#include "SEN5xDeviceStatus.h"
-#include "OXRS_LOG.h"
+#include <SEN5xDeviceStatus.h>
+#include <OXRS_LOG.h>
 
 static const char *_LOG_PREFIX = "[SEN5xDeviceStatus] ";
 

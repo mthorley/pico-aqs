@@ -24,6 +24,17 @@ Integration of [Sensirion SEN55](https://www.sensirion.com/products/catalog/SEN5
 
 ## Future works:
 
+- Librification:
+  - Raise PR to support PICO for OXRS_MQTT and OXRS_API libs
+  - Remove OXRS_MQTT and OXRS_API sourcecode and replace with library dependencies
+  - Remove OXRS_HASS sourcecode and replace with library
+  - Create OXRS_LOG library
+  - Create OXRS_IO_PICO library
+  - Remove sourcecode and replace with OXRS_LOG and OXRS_IO_PICO libraries
+  - Create SEN5x as a library 
+
+- Configuration
+
 ```
 config
  - celsius / farenheit

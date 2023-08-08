@@ -1,4 +1,4 @@
-#include <OXRS_LOG.h>
+#include "OXRS_LOG.h"
 
 static const char *_LOG_PREFIX = "[OXRS_LOG] ";
 
@@ -208,11 +208,11 @@ void OXRS_LOG::MQTTLogger::log(LogLevel_t level, String& logLine)
 void OXRS_LOG::MQTTLogger::setConfig(JsonVariant json)
 {
     JsonObject mqttlog = json.createNestedObject("mqttlog");
-    mqttlog["title"] = "MQTT Log";
+    mqttlog["title"]   = "MQTT Log";
     JsonObject mqttlogProps = mqttlog.createNestedObject("properties");
-    JsonObject enable = mqttlogProps.createNestedObject(MQTTLOG_ENABLE);
-    enable["type"]    = "boolean";
-    enable["title"]   = "Enable";
+    JsonObject enable  = mqttlogProps.createNestedObject(MQTTLOG_ENABLE);
+    enable["type"]     = "boolean";
+    enable["title"]    = "Enable";
 
     JsonObject deps = mqttlog.createNestedObject("dependencies");
     JsonObject mqttlogEnable = deps.createNestedObject(MQTTLOG_ENABLE);
@@ -224,10 +224,10 @@ void OXRS_LOG::MQTTLogger::setConfig(JsonVariant json)
     arrEnum.add(true);
 
     JsonObject serverProps = enableProps.createNestedObject(TOPIC_CONFIG);
-    serverProps["type"]    = "string";
-    serverProps["title"]   = "Topic";
+    serverProps["type"]        = "string";
+    serverProps["title"]       = "Topic";
     serverProps["description"] = "";
-    serverProps["default"] = _topic;
+    serverProps["default"]     = _topic;
 
     JsonArray required = obj.createNestedArray("required");
     required.add(TOPIC_CONFIG);
@@ -264,12 +264,11 @@ void OXRS_LOG::MQTTLogger::onConfig(JsonVariant json)
     }
 }
 
-
 // Syslog
 void OXRS_LOG::SysLogger::setConfig(JsonVariant json)
 {
     JsonObject syslog = json.createNestedObject("syslog");
-    syslog["title"] = "Sys Log";
+    syslog["title"]   = "Sys Log";
     JsonObject syslogProps = syslog.createNestedObject("properties");
     JsonObject enable = syslogProps.createNestedObject(SYSLOG_ENABLE);
     enable["type"]    = "boolean";
@@ -285,17 +284,18 @@ void OXRS_LOG::SysLogger::setConfig(JsonVariant json)
     arrEnum.add(true);
 
     JsonObject serverProps = enableProps.createNestedObject(SERVER_CONFIG);
-    serverProps["type"]    = "string";
-    serverProps["title"]   = "Server";
+    serverProps["type"]        = "string";
+    serverProps["title"]       = "Server";
     serverProps["description"] = "";
 
     JsonObject portProps = enableProps.createNestedObject(PORT_CONFIG);
-    portProps["type"]    = "integer";
-    portProps["title"]   = "Port";
+    portProps["type"]        = "integer";
+    portProps["title"]       = "Port";
     portProps["description"] = "";
-    portProps["default"] = 514;
+    portProps["default"]     = 514;
 
     JsonArray required = obj.createNestedArray("required");
+    required.add("server");
     required.add("port");
 
     obj = oneOfArr.createNestedObject();
@@ -303,6 +303,36 @@ void OXRS_LOG::SysLogger::setConfig(JsonVariant json)
     syslogEnableProps = enableProps.createNestedObject(SYSLOG_ENABLE);
     arrEnum = syslogEnableProps.createNestedArray("enum");
     arrEnum.add(false);
+}
+
+void OXRS_LOG::SysLogger::onConfig(JsonVariant json)
+{
+    // Process log config changes
+    JsonVariant jvEnable = findNestedKey(json, SYSLOG_ENABLE);
+    if (!jvEnable.isNull()) {
+        bool enable = jvEnable.as<bool>();
+
+        if (enable) {
+            JsonVariant jvServer = findNestedKey(json, SERVER_CONFIG);
+            if (!jvServer.isNull()) {
+                _server = jvServer.as<String>();
+            }
+
+            JsonVariant jvPort = findNestedKey(json, PORT_CONFIG);
+            if (!jvPort.isNull()) {
+                _port = jvPort.as<uint16_t>();
+            }
+        }
+
+        if (!isEnabled() && enable) {
+            setEnable(enable);
+            LOG_DEBUG(F("Syslog enabled"));
+        }
+        if (isEnabled() && !enable) {
+            LOG_DEBUG(F("Syslog disabled"));
+            setEnable(enable);
+        }
+    }
 }
 
 void OXRS_LOG::SysLogger::log(LogLevel_t level, const __FlashStringHelper* logLine)
@@ -379,35 +409,5 @@ uint8_t OXRS_LOG::SysLogger::getSeverity(LogLevel_t level)
             return PRI_WARNING;
         default:
             return PRI_INFO;
-    }
-}
-
-void OXRS_LOG::SysLogger::onConfig(JsonVariant json)
-{
-    // Process log config changes
-    JsonVariant jvEnable = findNestedKey(json, SYSLOG_ENABLE);
-    if (!jvEnable.isNull()) {
-        bool enable = jvEnable.as<bool>();
-
-        if (enable) {
-            JsonVariant jvServer = findNestedKey(json, SERVER_CONFIG);
-            if (!jvServer.isNull()) {
-                _server = jvServer.as<String>();
-            }
-
-            JsonVariant jvPort = findNestedKey(json, PORT_CONFIG);
-            if (!jvPort.isNull()) {
-                _port = jvPort.as<uint16_t>();
-            }
-        }
-
-        if (!isEnabled() && enable) {
-            setEnable(enable);
-            LOG_DEBUG(F("Syslog enabled"));
-        }
-        if (isEnabled() && !enable) {
-            LOG_DEBUG(F("Syslog disabled"));
-            setEnable(enable);
-        }
     }
 }
