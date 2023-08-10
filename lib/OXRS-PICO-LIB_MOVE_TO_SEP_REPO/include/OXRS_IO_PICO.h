@@ -13,7 +13,7 @@ OXRS Admin UI for any PICOw based device.
 class OXRS_IO_PICO
 {
 public:
-    OXRS_IO_PICO();
+    OXRS_IO_PICO(bool useOnBoardTempSensor);
 
     void begin(jsonCallback config, jsonCallback command);
     void loop();
@@ -32,11 +32,14 @@ public:
     static JsonVariant findNestedKey(JsonObject obj, const String &key);
     inline static const String RESTART_COMMAND = "restart";
 
+    float readOnboardTemperature(bool celsiusNotFahr = true);
+
 private:
     void initialiseRestApi();
     void initialiseNetwork(byte *mac);
     void initialiseMqtt(byte *mac);
     void initialiseWatchdog();
+    void initialiseTempSensor();
 
     static boolean isNetworkConnected();
 
@@ -47,4 +50,6 @@ private:
     static void getConfigSchemaJson(JsonVariant json);
     static void getCommandSchemaJson(JsonVariant json);
     static void mergeJson(JsonVariant dst, JsonVariantConst src);
+
+    bool _useOnBoardTempSensor;     // true then log temperature via ADC from Pico onboard sensor
 };

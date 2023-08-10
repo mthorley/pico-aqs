@@ -6,7 +6,8 @@
 #include <OXRS_SEN5x.h>
 
 // OXRS layer
-OXRS_IO_PICO oxrsPico;
+bool usePicoOnboardTempSensor = true;
+OXRS_IO_PICO oxrsPico(usePicoOnboardTempSensor);
 
 // Sensirion air quality sensor
 OXRS_SEN5x oxrsSen5x(SEN5x_model_t::SEN55);
@@ -27,7 +28,7 @@ void jsonConfig(JsonVariant json)
     // Handle any Home Assistant config
     hass.parseConfig(json);
 
-   LOG_DEBUG(F("jsonConfig complete"));
+    LOG_DEBUG(F("jsonConfig complete"));
 }
 
 void setConfigSchema()
@@ -185,6 +186,8 @@ void loop()
     if (telemetry.size() > 0)
     {
         oxrsPico.publishTelemetry(telemetry);
+        float temperature = oxrsPico.readOnboardTemperature();
+        LOGF_INFO("Pico onboard temperature = %.02f %c", temperature, 'C');
     }
 
     // Check if we need to publish any Home Assistant discovery payloads

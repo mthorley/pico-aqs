@@ -4,16 +4,16 @@
  */
 
 #include "hardware/watchdog.h"
+#include "hardware/adc.h"
 #include <WiFi.h>
 #include <LittleFS.h>
 #include <OXRS_MQTT.h>
 #include <OXRS_API.h>
 #include <OXRS_LOG.h>
 #include <OXRS_IO_PICO.h>
+#include "WiFIManager.h"
 
 // #define __WATCHDOG
-
-#include "Credentials.h" // FIXME:
 
 static const char *_LOG_PREFIX = "[OXRS_IO_PICO] ";
 
@@ -140,7 +140,8 @@ void _mqttCallback(char *topic, uint8_t *payload, unsigned int length)
     }
 }
 
-OXRS_IO_PICO::OXRS_IO_PICO() 
+OXRS_IO_PICO::OXRS_IO_PICO(bool useOnBoardTempSensor=false)
+    : _useOnBoardTempSensor(useOnBoardTempSensor)
 {
 
 };
@@ -188,54 +189,59 @@ boolean OXRS_IO_PICO::isNetworkConnected()
     return WiFi.status() == WL_CONNECTED;
 }
 
-// FIXME: rely on wifi manager and config
-void network_connect()
-{
-    int status;
-    while (status != WL_CONNECTED)
-    {
-        LOGF_DEBUG("Attempting to connect to WPA SSID: %s", WIFI_SSID);
-
-        // Connect to WPA/WPA2 network:
-        status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // Set these credentials
-
-        // wait to connect:
-        delay(5000);
-    }
-
-    if (status == WL_CONNECTED)
-    {
-        LOGF_INFO("Connected to WPA SSID: %s", WIFI_SSID);
-    }
-
-    LOGF_INFO("Device IPv4: %s MAC: %s", WiFi.localIP().toString().c_str(), WiFi.macAddress().c_str());
-}
-
 void OXRS_IO_PICO::initialiseNetwork(byte *mac)
 {
-
     LOG_DEBUG(F("initialiseNetwork"));
-    /*  WiFi.macAddress(mac);
+    WiFi.macAddress(mac);
 
-      // Format the MAC address for logging
-      char mac_display[18];
-      sprintf_P(mac_display, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-      _logger.println(mac_display);
+    // Format the MAC address for logging
+    char mac_display[18];
+    sprintf_P(mac_display, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    LOG_INFO(mac_display);
 
-      WiFi.mode(WIFI_STA);*/
+    // Ensure we are in the correct WiFi mode
+//    WiFi.mode(WIFI_STA);
 
-    // FIXME:
-    /*  WiFiManager wm;
+    // Connect using saved creds, or start captive portal if none found
+    // NOTE: Blocks until connected or the portal is closed
+    WiFiManager wm;
+    bool success = wm.autoConnect("OXRS_WiFi", "superhouse");
+    String s = success ? WiFi.localIP().toString() : IPAddress(0, 0, 0, 0).toString();
+    LOGF_INFO("network %s", s.c_str());
+}
 
-      wm.setConfigPortalTimeout(WM_CONFIG_PORTAL_TIMEOUT_S);
+void OXRS_IO_PICO::initialiseTempSensor()
+{
+    if (!_useOnBoardTempSensor)
+        return;
 
-      if (!wm.autoConnect("OXRS_WiFi", "superhouse")) {
-        _logger.println("Failed to connect");
-      }
+    // Initialize hardware AD converter, enable onboard temperature sensor and
+    // select its channel (do this once for efficiency, but beware that this
+    // is a global operation).
+    adc_init();
+    adc_set_temp_sensor_enabled(true);
+    adc_select_input(4);
+}
 
-      IPAddress ipAddress = WiFi.localIP();
-    */
-    network_connect();
+/* Gets onboard temperature via ADC.
+ * References for this implementation: raspberry-pi-pico-c-sdk.pdf, Section '4.1.1. hardware_adc'
+ * pico-examples/adc/adc_console/adc_console.c */
+float OXRS_IO_PICO::readOnboardTemperature(bool celsiusNotFahr)
+{
+    /* 12-bit conversion, assume max value == ADC_VREF == 3.3 V */
+    const float conversionFactor = 3.3f / (1 << 12);
+
+    float adc = (float)adc_read() * conversionFactor;
+    float tempC = 27.0f - (adc - 0.706f) / 0.001721f;
+
+    if (celsiusNotFahr) {
+        return tempC;
+    }
+    else {
+        return tempC * 9 / 5 + 32;
+    }
+
+    return -1.0f;
 }
 
 void OXRS_IO_PICO::loop()
@@ -469,4 +475,7 @@ void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
 
     // setup watchdog
     initialiseWatchdog();
+
+    // setup onboard temp sensor
+    initialiseTempSensor();
 }
