@@ -1,8 +1,15 @@
+#include <hardware/flash.h>
+#include <hardware/sync.h>
 #include <OXRS_LOG.h>
+#include <LittleFS.h>
+#include <aWOT.h>
 #include "WiFIManager.h"
 
 // FIXME:
 #define __USE_CREDENTIALS
+
+WiFiServer server(80);
+Application app;
 
 #if defined(__USE_CREDENTIALS)
 #include "Credentials.h"
@@ -10,16 +17,19 @@
 
 static const char *_LOG_PREFIX = "[WiFiManager] ";
 
+void index(Request &req, Response &res) {
+  res.print("Hello Wolrd!");
+}
+
 WiFiManager::WiFiManager()
 {
-
 }
 
 WiFiManager::~WiFiManager()
 {
-
 }
 
+#ifdef __USE_CREDENTIALS
 bool WiFiManager::autoConnect(char const *apName, char const *apPassword)
 {
     int status;
@@ -42,163 +52,100 @@ bool WiFiManager::autoConnect(char const *apName, char const *apPassword)
     LOGF_INFO("Device IPv4: %s MAC: %s", WiFi.localIP().toString().c_str(), WiFi.macAddress().c_str());
     return true;
 }
+#endif
 
 #ifndef __USE_CREDENTIALS
-bool WiFiManager::setupHostname(bool restart)
+void WiFiManager::writeCredentials(const wifi_credentials_t& creds)
 {
-    if(_hostname == "") {
-        LOG_DEBUG(F("No Hostname to set"));
-        return false;
-    } 
-    else {
-        LOGF_DEBUG("Setting Hostname: %s", _hostname);
-    }
+    char buf[FLASH_PAGE_SIZE /* /sizeof(char) */];
 
-    bool res = true;
+    // Using fixed position in memory rather than serialisation
+    // to reduce likelihood of a read error on changes to the struct
+    strcpy(&buf[FLASH_POS_SSID], creds.ssid);
+    strcpy(&buf[FLASH_POS_PWD], creds.pwd);
 
-    // @note hostname must be set after STA_START
-    LOG_DEBUG(F("Setting WiFi hostname"));
+    uint32_t ints = save_and_disable_interrupts();
 
-    // FIXME: WiFi.setHostname is void and should be bool
-    /*res = */WiFi.setHostname(_hostname.c_str());
-    #ifdef WM_MDNS
-        LOG_DEBUG(F("Setting MDNS hostname, tcp 80"));
-        if(MDNS.begin(_hostname.c_str())){
-            MDNS.addService("http", "tcp", 80);
-        }
-    #endif
+    // Erase the last sector of the flash
+    flash_range_erase((PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE), FLASH_SECTOR_SIZE);
 
-    LOG_ERROR(F("hostname: set failed!"));
+    // Program buf[] into the first page of this sector
+    flash_range_program((PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE), (uint8_t *)buf, FLASH_PAGE_SIZE);
 
-    if(restart && (WiFi.status() == WL_CONNECTED)){
-        LOG_DEBUG(F("reconnecting to set new hostname"));
-        WiFi.disconnect();
-        delay(200); // do not remove, need a delay for disconnect to change status()
-    }
-
-    return res;
+    restore_interrupts (ints);
 }
 
-void WiFiManager::_begin()
+void WiFiManager::readCredentials(wifi_credentials_t& creds)
 {
-    if(_hasBegun) 
-        return;
-    _hasBegun = true;
-    // _usermode = WiFi.getMode();
+// Flash-based address of the last sector
+#define FLASH_TARGET_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
+
+    char *p;
+    int addr, value;
+
+    // Compute the memory-mapped address, remembering to include the offset for RAM
+    addr = XIP_BASE + FLASH_TARGET_OFFSET;
+
+    p = (char*)addr;
+    strncpy(creds.ssid, p+FLASH_POS_SSID, SSID_OR_PWD_LEN);
+    strncpy(creds.pwd,  p+FLASH_POS_PWD,  SSID_OR_PWD_LEN);
 }
 
-void WiFiManager::_end()
+bool WiFiManager::credentialsExist()
 {
-    _hasBegun = false;
-    if(_userpersistent) 
-        WiFi.persistent(true); // reenable persistent, there is no getter we rely on _userpersistent
-    // if(_usermode != WIFI_OFF) WiFi.mode(_usermode);
+// FIXME: read flash
+    return false;
 }
 
 bool WiFiManager::autoConnect(char const *apName, char const *apPassword)
 {
-    LOG_DEBUG(F("AutoConnect"));
+    LOG_DEBUG(F("autoConnect"));
 
-    // bool wifiIsSaved = getWiFiIsSaved();
+    bool res = false;
 
-    setupHostname(true);
-
-    if (_hostname != "")
-    {
-        // disable wifi if already on
-        if (WiFi.getMode() & WIFI_STA)
+    // check if credentials exist
+    if (credentialsExist()) {
+        // attempt to connect
+        // if (!attemptToConnect()) 
         {
-            WiFi.mode(WIFI_OFF);
-            int timeout = millis() + 1200;
-            // async loop for mode change
-            while (WiFi.getMode() != WIFI_OFF && millis() < timeout)
-            {
-                delay(0);
-            }
+            // erase credentials
+
+            // fall out to startConfigPortal
+            res = startConfigPortal(apName, apPassword);
         }
     }
-
-    // check if wifi is saved, (has autoconnect) to speed up cp start
-    // NOT wifi init safe
-    // if(wifiIsSaved){
-    _startconn = millis();
-    _begin();
-
-    // attempt to connect using saved settings, on fail fallback to AP config portal
-    //if (!WiFi.enableSTA(true))
-    WiFi.mode(WIFI_STA);
-//    {
-// handle failure mode Brownout detector etc.
-//        LOG_ERROR(F("[FATAL] Unable to enable wifi!"));
-//        return false;
-//    }
-
-    WiFiSetCountry();
-
-    WiFi.persistent(false);     // disable persistent
-
-    _usermode = WIFI_STA; // When using autoconnect , assume the user wants sta mode on permanently.
-
-    // no getter for autoreconnectpolicy before this
-    // https://github.com/esp8266/Arduino/pull/4359
-    // so we must force it on else, if not connectimeout then waitforconnectionresult gets stuck endless loop
-    WiFi_autoReconnect();
-
-    // if already connected, or try stored connect
-    // @note @todo ESP32 has no autoconnect, so connectwifi will always be called unless user called begin etc before
-    // @todo check if correct ssid == saved ssid when already connected
-    bool connected = false;
-    if (WiFi.status() == WL_CONNECTED)
+    else
     {
-        connected = true;
-        LOG_DEBUG(F("AutoConnect: Already Connected"));
-        setSTAConfig();
-        // @todo not sure if this is safe, causes dup setSTAConfig in connectwifi,
-        // and we have no idea WHAT we are connected to
+        // not connected start configportal
+        res = startConfigPortal(apName, apPassword);
     }
-
-    if (connected || connectWifi(_defaultssid, _defaultpass) == WL_CONNECTED)
-    {
-// connected
-#ifdef WM_DEBUG_LEVEL
-        DEBUG_WM(F("AutoConnect: SUCCESS"));
-        DEBUG_WM(DEBUG_VERBOSE, F("Connected in"), (String)((millis() - _startconn)) + " ms");
-        DEBUG_WM(F("STA IP Address:"), WiFi.localIP());
-#endif
-        // Serial.println("Connected in " + (String)((millis()-_startconn)) + " ms");
-        _lastconxresult = WL_CONNECTED;
-
-        if (_hostname != "")
-        {
-#ifdef WM_DEBUG_LEVEL
-            DEBUG_WM(DEBUG_DEV, F("hostname: STA: "), getWiFiHostname());
-#endif
-        }
-        return true; // connected success
-    }
-
-#ifdef WM_DEBUG_LEVEL
-    DEBUG_WM(F("AutoConnect: FAILED for "), (String)((millis() - _startconn)) + " ms");
-#endif
-    // }
-    // else {
-    // #ifdef WM_DEBUG_LEVEL
-    // DEBUG_WM(F("No Credentials are Saved, skipping connect"));
-    // #endif
-    // }
-
-    // possibly skip the config portal
-    if (!_enableConfigPortal)
-    {
-#ifdef WM_DEBUG_LEVEL
-        DEBUG_WM(DEBUG_VERBOSE, F("enableConfigPortal: FALSE, skipping "));
-#endif
-
-        return false; // not connected and not cp
-    }
-
-    // not connected start configportal
-    bool res = startConfigPortal(apName, apPassword);
     return res;
+}
+
+bool WiFiManager::startConfigPortal(char const *apName, char const *apPassword)
+{
+    // go into AP mode
+    WiFi.beginAP(apName, apPassword);
+    while ( WiFi.status() != WL_CONNECTED ) {;
+        delay( 500 );
+        Serial.print( "." );
+    }
+
+    app.get("/", &index);
+    server.begin();
+
+    // scan for networks
+
+    // show portal
+    while(true) {
+        WiFiClient client = server.available();
+
+        if (client.connected()) {
+            Serial.println("client connected");
+            app.process(&client);
+        }
+    }
+
+    return true;
 }
 #endif

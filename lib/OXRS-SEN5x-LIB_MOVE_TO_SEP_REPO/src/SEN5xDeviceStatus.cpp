@@ -40,23 +40,20 @@ void SEN5xDeviceStatus::logStatus() const
     std::bitset<32> b(_register);
 
     // iterate through all status config bits
-    for (auto iter = _pstatusConfig->begin(); iter != _pstatusConfig->end(); iter++)
-    {
+    for (auto iter = _pstatusConfig->begin(); iter != _pstatusConfig->end(); iter++) {
         // is status bit set?
-        if (b[iter->second.bit_no] == 1)
-        {
+        if (b[iter->second.bit_no] == 1) {
             String msg(iter->second.msg);
-            switch (iter->second.type)
-            {
-            case error:
-                LOG_ERROR(msg);
-                break;
-            case warn:
-                LOG_WARN(msg);
-                break;
-            case info:
-                LOG_INFO(msg);
-                break;
+            switch (iter->second.type) {
+                case error:
+                    LOG_ERROR(msg);
+                    break;
+                case warn:
+                    LOG_WARN(msg);
+                    break;
+                case info:
+                    LOG_INFO(msg);
+                    break;
             }
         }
     }
@@ -64,13 +61,15 @@ void SEN5xDeviceStatus::logStatus() const
 
 void SEN5xDeviceStatus::setConfig(SEN5x_model_t model)
 {
-    switch (model)
-    {
-    case SEN50:
-        _pstatusConfig = &statusConfig50;
-    case SEN54:
-        _pstatusConfig = &statusConfig54;
-    default:
-        _pstatusConfig = &statusConfig55;
+    switch (model) {
+        case SEN50:
+            _pstatusConfig = &statusConfig50;
+            break;
+        case SEN54:
+            _pstatusConfig = &statusConfig54;
+            break;
+        default:
+            _pstatusConfig = &statusConfig55;
+            break;
     }
 }

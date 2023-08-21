@@ -1,8 +1,26 @@
+/**
+ * OXRS-LOG
+ *
+ * Logging singleton that allows combinations of different log types 
+ * for use in the OXRS eco-system.
+ *
+ * Logging configuration can be managed via OXRS_API and any admin UI as follows:
+ *    Overall log level (e.g. DEBUG, INFO, ERROR etc)
+ *    Each logger can be enabled and configured
+ *    - Serial   (default)
+ *    - MQTT     (state, log topic)
+ *    - Syslog   (state, serverIP, servicePort)
+ *
+ * New loggers can be added by extending the class AbstractLogger.
+ */
+
 #pragma once
+
 #include <list>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+
 #include <Arduino.h>
 #include <PubSubClient.h>
 #include <WiFiUdp.h>
@@ -22,7 +40,9 @@
 
 #define ISLOG_DEBUG     (oxrsLog.getLevel()==OXRS_LOG::LogLevel_t::DEBUG)
 
-// Singleton that abstracts underying loggers: mqtt, serial, loki, syslog etc
+/*
+ * Singleton log that abstracts underying loggers
+ */
 class OXRS_LOG {
 public:
     static OXRS_LOG &getInstance();
@@ -51,17 +71,16 @@ public:
         " "
     };
 
-    void onConfig(JsonVariant json);
-    void setConfig(JsonVariant json);
-
-    //-----------------------------------------------------
-    // Base class
+    /* 
+     * Abstrat base class for all loggers
+     */
     class AbstractLogger {
     public:
         virtual void log(LogLevel_t level, const __FlashStringHelper* logLine)=0;
         virtual void log(LogLevel_t level, const char* logLine)=0;
         virtual void log(LogLevel_t level, String& logLine)=0;
 
+        // OXRS callbacks
         virtual void onConfig(JsonVariant json)=0;
         virtual void setConfig(JsonVariant json)=0;
 
@@ -74,11 +93,12 @@ public:
         }
 
     private:
-        bool _enable;
+        bool _enable;   // logger enabled or not
     };
 
-    //-----------------------------------------------------
-    // Serial port logger
+    /*
+     * Serial port logger
+     */
     class SerialLogger : public AbstractLogger {
     public:
         virtual void log(LogLevel_t level, const __FlashStringHelper* logLine);
@@ -89,8 +109,9 @@ public:
         virtual void setConfig(JsonVariant json) {};
     };
 
-    //-----------------------------------------------------
-    // MQTT logger
+    /*
+     * MQTT logger
+     */
     class MQTTLogger : public AbstractLogger {
     public:
         MQTTLogger(PubSubClient& client) :
@@ -107,7 +128,7 @@ public:
         virtual void onConfig(JsonVariant json);
         virtual void setConfig(JsonVariant json);
 
-        inline static const char* TOPIC_CONFIG = "topic";
+        inline static const char* TOPIC_CONFIG   = "topic";
         inline static const char* MQTTLOG_ENABLE = "mqttlog_enable";
 
     private:
@@ -115,12 +136,13 @@ public:
         String        _topic;   // log topic
     };
 
-    //-----------------------------------------------------
-    // Sys logger
+    /*
+     * Basic sys logger
+     */
     class SysLogger : public AbstractLogger {
     public:
         SysLogger() :
-            _hostname(""),
+            _hostname(""),      // FIXME: to be derived from network configuration
             _app(FW_SHORT_NAME),
             _server(""),
             _port(514) {};
@@ -161,7 +183,7 @@ public:
         void send(uint8_t* pBuffer, int len);
         uint8_t getSeverity(LogLevel_t level);
 
-        WiFiUDP  _syslogger;
+        WiFiUDP  _syslogger;    // FIXME: And if this is using ethernet?
         String   _hostname;
         String   _app;
         String   _server;
@@ -170,8 +192,14 @@ public:
 
     LogLevel_t getLevel() const;
     void setLevel(LogLevel_t level);
+
+    // OXRS callbacks
+    void onConfig(JsonVariant json);
+    void setConfig(JsonVariant json);
+
     void setLogLevelCommand(const String& sLogLevel);
-    void addLogger(AbstractLogger* pLogger);
+
+    void addLogger(AbstractLogger* pLogger);    // add logger to the list of loggers to use
 
     void logf(LogLevel_t level, const char* prefix, const char *fmt, ...);
     void log(LogLevel_t level, const char* prefix, const __FlashStringHelper *logEvent);
@@ -181,12 +209,11 @@ public:
     static JsonVariant findNestedKey(JsonObject obj, const String &key);
 
 private:
-    OXRS_LOG();
+    OXRS_LOG();                             // singleton
 
-    LogLevel_t   _currentLevel;
-    SerialLogger _serial;
-    //LokiLogger _lokiLog;  // https://github.com/grafana/loki-arduino
-    std::list<AbstractLogger*> _loggers;
+    LogLevel_t   _currentLevel;             // current logging level of LogLevel_t
+    SerialLogger _serial;                   // default Serial logger
+    std::list<AbstractLogger*> _loggers;    // list of all loggers to log to
 };
 
 extern OXRS_LOG &oxrsLog;

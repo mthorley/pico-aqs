@@ -5,6 +5,13 @@
 #include <OXRS_HASS.h>
 #include <OXRS_SEN5x.h>
 
+//#define __TESTING
+
+#ifdef __TESTING
+#include <WiFIManager.h>
+WiFiManager wm;
+#endif
+
 // OXRS layer
 bool usePicoOnboardTempSensor = true;
 OXRS_IO_PICO oxrsPico(usePicoOnboardTempSensor);
@@ -12,7 +19,7 @@ OXRS_IO_PICO oxrsPico(usePicoOnboardTempSensor);
 // Sensirion air quality sensor
 OXRS_SEN5x oxrsSen5x(SEN5x_model_t::SEN55);
 
-// home assistant discovery config
+// Home assistant discovery config
 OXRS_HASS hass(oxrsPico.getMQTT());
 
 // Publish Home Assistant self-discovery config for each sensor
@@ -66,6 +73,7 @@ void setCommandSchema()
     oxrsPico.setCommandSchema(commands);
 }
 
+// FIXME: Move this to OXRS_SEN5x_LIB
 void publishHassDiscovery()
 {
     if (hassDiscoveryPublished)
@@ -153,6 +161,7 @@ void publishHassDiscovery()
     LOG_DEBUG(F("haas published"));
 }
 
+#ifndef __TESTING
 void setup()
 {
     Serial.begin();
@@ -186,8 +195,10 @@ void loop()
     if (telemetry.size() > 0)
     {
         oxrsPico.publishTelemetry(telemetry);
-        float temperature = oxrsPico.readOnboardTemperature();
-        LOGF_INFO("Pico onboard temperature = %.02f %c", temperature, 'C');
+        if (usePicoOnboardTempSensor) {
+            float temperature = oxrsPico.readOnboardTemperature();
+            LOGF_INFO("Pico onboard temperature = %.02f %c", temperature, 'C');
+        }
     }
 
     // Check if we need to publish any Home Assistant discovery payloads
@@ -196,3 +207,33 @@ void loop()
         publishHassDiscovery();
     }
 }
+#endif
+
+#ifdef __TESTING
+
+void setup() {
+
+    wifi_credentials_t creds;
+    strcpy(creds.ssid, "halfife");
+    strcpy(creds.pwd, "secret");
+//    wm.writeCredentials(creds);
+
+const char *ssid = "OXRS_WiFi";
+const char *password = "superhouse";
+    wm.startConfigPortal(ssid, password);
+}
+
+void loop() {
+
+    bool doOnce = true;
+
+    if (!doOnce) {
+        wifi_credentials_t creds;
+        wm.readCredentials(creds);
+        Serial.println(creds.ssid);
+        Serial.println(creds.pwd);
+        doOnce = true;
+    }
+}
+
+#endif

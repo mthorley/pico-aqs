@@ -8,7 +8,7 @@
 
 /*
 Utility class to enable OXRS API, MQTT libraries and
-OXRS Admin UI for any PICOw based device.
+OXRS Admin UI for any RPi PicoW based device.
 */
 class OXRS_IO_PICO
 {

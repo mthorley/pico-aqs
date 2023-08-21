@@ -5,15 +5,20 @@
 #include <Wire.h>
 #include "SEN5xDeviceStatus.h"
 
+/*
+ * OXRS firmware supporting Sensirion 5x (SEN50, SEN54, SEN55) air quality sensors.
+ * Refer https://www.sensirion.com/media/documents/6791EFA0/62A1F68F/Sensirion_Datasheet_Environmental_Node_SEN5x.pdf
+ */
+
 typedef struct {
-    float pm1p0;
-    float pm2p5;
-    float pm4p0;
-    float pm10p0;
-    float humidityPercent;
-    float tempCelsuis;
-    float vocIndex;
-    float noxIndex;
+    float pm1p0;                // particulate matter PM1.0 µm
+    float pm2p5;                // particulate matter PM2.5 µm
+    float pm4p0;                // particulate matter PM4.0 µm
+    float pm10p0;               // particulate matter PM10.0 µm
+    float humidityPercent;      // relative humidity  %
+    float tempCelsuis;          // temperature        °C
+    float vocIndex;             // volatile organic compound index 1-500
+    float noxIndex;             // nitrous oxide index 1-500
 } SEN5x_telemetry_t;
 
 class OXRS_SEN5x {
@@ -27,6 +32,7 @@ public:
 
     void getTelemetry(JsonVariant json);
 
+    // OXRS ecosystem
     void onConfig(JsonVariant json);
     void onCommand(JsonVariant json);
     void setConfigSchema(JsonVariant json);
@@ -66,7 +72,7 @@ private:
 
     uint32_t _publishTelemetry_ms;          // how often publish
     uint32_t _lastPublishTelemetry_ms;      // last time published since start
-    float_t  _tempOffset_celsius;           // temperature offset
+    float_t  _tempOffset_celsius;           // sensor temperature offset
 
     SensirionI2CSen5x _sensor;              // i2c library
     SEN5x_model_t     _model;               // sensor model

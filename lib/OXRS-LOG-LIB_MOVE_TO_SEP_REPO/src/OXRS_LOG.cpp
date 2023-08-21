@@ -111,6 +111,7 @@ JsonVariant OXRS_LOG::findNestedKey(JsonObject obj, const String &key)
     return JsonVariant();
 }
 
+// FIXME: Use jsonschema enum to avoid string to enum translation
 void OXRS_LOG::setLogLevelCommand(const String& sLogLevel)
 {
     if (sLogLevel=="DEBUG")
@@ -142,16 +143,16 @@ void OXRS_LOG::onConfig(JsonVariant json) {
 
 void OXRS_LOG::setConfig(JsonVariant json)
 {
-    // Logging section
+    // Logging properties
     JsonObject logConfig = json.createNestedObject("logging");
     logConfig["title"]   = "Logging";
     JsonObject logProps  = logConfig.createNestedObject("properties");
 
     // Log level
-    JsonObject logLevel  = logProps.createNestedObject("loglevel");
-    logLevel["title"]    = "Log Level";
+    JsonObject logLevel     = logProps.createNestedObject("loglevel");
+    logLevel["title"]       = "Log Level";
     logLevel["description"] = "Applies to all loggers.";
-    logLevel["default"]  = oxrsLog.getLevel();
+    logLevel["default"]     = oxrsLog.getLevel();
 
     JsonArray logLevelEnum = logLevel.createNestedArray("enum");
     logLevelEnum.add("DEBUG");
@@ -265,6 +266,7 @@ void OXRS_LOG::MQTTLogger::onConfig(JsonVariant json)
 }
 
 // Syslog
+// FIXME: make this a function or load json as template
 void OXRS_LOG::SysLogger::setConfig(JsonVariant json)
 {
     JsonObject syslog = json.createNestedObject("syslog");

@@ -6,6 +6,25 @@
  * but tailored to Pico and simplified and is very much WIP.
  */
 
+#define SSID_OR_PWD_LEN   32
+#define FLASH_POS_SSID    0
+#define FLASH_POS_PWD     64
+
+typedef struct wifi_credentials_t {
+    char ssid[SSID_OR_PWD_LEN];
+    char pwd[SSID_OR_PWD_LEN];
+
+/*    void serialise(std::ostream &out) const {
+        out << ssid << pwd;
+    }
+
+    static wifi_credentials_t deserialise(std::istream &in) {
+        wifi_credentials_t c;
+        in >> c.ssid >> c.pwd;
+        return c;
+    }*/
+} wifi_credentials_t;
+
 class WiFiManager 
 {
 public:
@@ -13,30 +32,12 @@ public:
     ~WiFiManager();
 
     bool autoConnect(char const *apName, char const *apPassword = NULL);
-    bool setupHostname(bool restart);
+    bool startConfigPortal(char const *apName, char const *apPassword);
 
+//private:
 
-private:
-
-    void _begin();
-    void _end();
-    bool          _hasBegun               = false; // flag wm loaded,unloaded
-    bool          _userpersistent         = true;  // users preffered persistence to restore
-
-    String        _hostname               = "";    // hostname for esp8266 for dhcp, and or MDNS
-
-    // options flags
-    unsigned long _configPortalTimeout    = 0; // ms close config portal loop if set (depending on  _cp/webClientCheck options)
-    unsigned long _connectTimeout         = 0; // ms stop trying to connect to ap if set
-    unsigned long _saveTimeout            = 0; // ms stop trying to connect to ap on saves, in case bugs in esp waitforconnectresult
-
-    unsigned long _configPortalStart      = 0; // ms config portal start time (updated for timeouts)
-    unsigned long _webPortalAccessed      = 0; // ms last web access time
-    uint8_t       _lastconxresult         = WL_IDLE_STATUS; // store last result when doing connect operations
-    int           _numNetworks            = 0; // init index for numnetworks wifiscans
-    unsigned long _lastscan               = 0; // ms for timing wifi scans
-    unsigned long _startscan              = 0; // ms for timing wifi scans
-    unsigned long _startconn              = 0; // ms for timing wifi connects
-    WiFiMode_t    _usermode               = WIFI_STA; // Default user mode
-
+    // WiFi credential methods
+    bool credentialsExist();
+    void writeCredentials(const wifi_credentials_t& creds);
+    void readCredentials(wifi_credentials_t& creds);
 };

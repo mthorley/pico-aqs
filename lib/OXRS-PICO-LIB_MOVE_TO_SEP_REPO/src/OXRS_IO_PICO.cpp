@@ -223,9 +223,11 @@ void OXRS_IO_PICO::initialiseTempSensor()
     adc_select_input(4);
 }
 
-/* Gets onboard temperature via ADC.
+/* 
+ * Get onboard temperature of Pico via ADC.
  * References for this implementation: raspberry-pi-pico-c-sdk.pdf, Section '4.1.1. hardware_adc'
- * pico-examples/adc/adc_console/adc_console.c */
+ * pico-examples/adc/adc_console/adc_console.c 
+ */
 float OXRS_IO_PICO::readOnboardTemperature(bool celsiusNotFahr)
 {
     /* 12-bit conversion, assume max value == ADC_VREF == 3.3 V */
@@ -234,14 +236,7 @@ float OXRS_IO_PICO::readOnboardTemperature(bool celsiusNotFahr)
     float adc = (float)adc_read() * conversionFactor;
     float tempC = 27.0f - (adc - 0.706f) / 0.001721f;
 
-    if (celsiusNotFahr) {
-        return tempC;
-    }
-    else {
-        return tempC * 9 / 5 + 32;
-    }
-
-    return -1.0f;
+    return celsiusNotFahr ? tempC : tempC * 9 / 5 + 32;
 }
 
 void OXRS_IO_PICO::loop()
