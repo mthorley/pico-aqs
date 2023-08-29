@@ -1,7 +1,7 @@
 {
-    "name": "OXRS_IO_PICO",
+    "name": "OXRS_SEN5x",
     "version": "1.0.0",
-    "description": "OXRS on PICOW",
+    "description": "Sensirion 5X on OXRS",
     "keywords": "OXRS, PICOW",
     "authors":
     [
@@ -11,9 +11,8 @@
     ],
     "license": "MIT",
     "dependencies": {
-      "OXRS-IO-API-ESP32-LIB": "~2.7.0",
-      "OXRS-IO-MQTT-ESP32-LIB": "~1.12.0",
-      "OXRS-IO-HASS-ESP-LIB": "~0.1.0"
+      "Sensirion I2C SEN5X": "^0.3.0"
+
     },
     "frameworks": "*",
     "platforms": "*"

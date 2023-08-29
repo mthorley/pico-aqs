@@ -40,6 +40,7 @@ private:
     void initialiseMqtt(byte *mac);
     void initialiseWatchdog();
     void initialiseTempSensor();
+    void initialiseTime();
 
     static boolean isNetworkConnected();
 
@@ -51,5 +52,5 @@ private:
     static void getCommandSchemaJson(JsonVariant json);
     static void mergeJson(JsonVariant dst, JsonVariantConst src);
 
-    bool _useOnBoardTempSensor;     // true then log temperature via ADC from Pico onboard sensor
+    bool   _useOnBoardTempSensor;       // true then log temperature via ADC from Pico onboard sensor
 };

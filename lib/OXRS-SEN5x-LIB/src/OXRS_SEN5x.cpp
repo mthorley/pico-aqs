@@ -7,6 +7,14 @@
 #include <OXRS_SEN5x.h>
 #include <SEN5xDeviceStatus.h>
 
+// Refer https://github.com/Sensirion/arduino-i2c-sen5x/blob/master/examples/exampleUsage/exampleUsage.ino
+#define MAXBUF_REQUIREMENT 48
+#if (defined(I2C_BUFFER_LENGTH) &&                 \
+     (I2C_BUFFER_LENGTH >= MAXBUF_REQUIREMENT)) || \
+    (defined(BUFFER_LENGTH) && BUFFER_LENGTH >= MAXBUF_REQUIREMENT)
+#define USE_PRODUCT_INFO
+#endif
+
 static const char *_LOG_PREFIX = "[OXRS_SEN5x] ";
 
 OXRS_SEN5x::OXRS_SEN5x(SEN5x_model_t model) :
@@ -14,7 +22,7 @@ OXRS_SEN5x::OXRS_SEN5x(SEN5x_model_t model) :
     _deviceStatus(model),
     _publishTelemetry_ms(DEFAULT_PUBLISH_TELEMETRY_MS),
     _tempOffset_celsius(DEFAULT_TEMP_OFFSET_C),
-    _lastPublishTelemetry_ms(0){};
+    _lastPublishTelemetry_ms(0) {};
 
 void OXRS_SEN5x::begin(TwoWire &wire)
 {
@@ -29,14 +37,11 @@ void OXRS_SEN5x::begin(TwoWire &wire)
 
 // Print SEN55 module information if i2c buffers are large enough
 #ifdef USE_PRODUCT_INFO
-    // FIXME:
-    //  [OXRS_SEN5x] [ERROR] Error trying to execute getSerialNumber():  Can't execute this command on this board, internal I2C buffer is too small
     String serialNo;
     error = getSerialNumber(serialNo);
     if (!error)
         LOG_INFO(serialNo);
 
-    // [OXRS_SEN5x] [ERROR] Error trying to execute getProductName(): Can't execute this command on this board, internal I2C buffer is too small
     String moduleVersions;
     error = getModuleVersions(moduleVersions);
     if (!error)
@@ -106,19 +111,37 @@ double OXRS_SEN5x::round2dp(float value) const
     return (std::isnan(value)) ? 0 : (int)(value * 100 + 0.5) / 100.0;
 }
 
+void OXRS_SEN5x::telemetryAsJson(const SEN5x_telemetry_t& t, JsonVariant json) const
+{
+    // Refer https://sensirion.com/media/documents/6791EFA0/62A1F68F/Sensirion_Datasheet_Environmental_Node_SEN5x.pdf
+    // as to which models have which capabilities
+    json["pm1p0"] = round2dp(t.pm1p0);
+    json["pm2p5"] = round2dp(t.pm2p5);
+    json["pm4p0"] = round2dp(t.pm4p0);
+    json["pm10p0"] = round2dp(t.pm10p0);
+
+    if (_model != SEN50)
+    {
+        json["hum"] = round2dp(t.humidityPercent);
+        json["temp"] = round2dp(t.tempCelsuis);
+        json["vox"] = round2dp(t.vocIndex);
+    }
+
+    if (_model == SEN55)
+        json["nox"] = round2dp(t.noxIndex); 
+}
+
 // Get telemetry from AQS
 void OXRS_SEN5x::getTelemetry(JsonVariant json)
 {
     // Do not publish if telemetry has been disabled
-    if (_publishTelemetry_ms == 0)
-    {
+    if (_publishTelemetry_ms == 0) {
         LOG_INFO(F("Telemetry disabled"));
         return;
     }
 
     // Check if time passed is enough to publish
-    if ((millis() - _lastPublishTelemetry_ms) > _publishTelemetry_ms)
-    {
+    if ((millis() - _lastPublishTelemetry_ms) > _publishTelemetry_ms) {
         // check device status
         Error_t error = refreshDeviceStatus();
         if (error) {
@@ -127,23 +150,20 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
             return;
         }
 
-        if (_deviceStatus.hasIssue())
-        {
+        if (_deviceStatus.hasIssue()) {
             _deviceStatus.logStatus();
         }
 
         // check device is dataready
         bool dataReady;
         error = _sensor.readDataReady(dataReady);
-        if (error)
-        {
+        if (error) {
             logError(error, F("Failed to get dataready state"));
             _lastPublishTelemetry_ms = millis();
             return;
         }
 
-        if (!dataReady)
-        {
+        if (!dataReady) {
             if (_deviceStatus.isFanCleaningActive())
                 LOG_DEBUG(F("Device data not ready as fan cleaning active"));
             else
@@ -155,36 +175,13 @@ void OXRS_SEN5x::getTelemetry(JsonVariant json)
         LOG_DEBUG(F("Taking measurements"));
         SEN5x_telemetry_t t;
         error = getMeasurements(t);
-        if (error)
-        {
+        if (error) {
             logError(error, F("Failed to get measurements"));
             _lastPublishTelemetry_ms = millis();
             return;
         }
 
-        // Refer https://sensirion.com/media/documents/6791EFA0/62A1F68F/Sensirion_Datasheet_Environmental_Node_SEN5x.pdf
-        // as to which models have which capabilities
-        json["pm1p0"] = round2dp(t.pm1p0);
-        json["pm2p5"] = round2dp(t.pm2p5);
-        json["pm4p0"] = round2dp(t.pm4p0);
-        json["pm10p0"] = round2dp(t.pm10p0);
-
-        if (_model != SEN50)
-        {
-            json["hum"] = round2dp(t.humidityPercent);
-            json["temp"] = round2dp(t.tempCelsuis);
-            json["vox"] = round2dp(t.vocIndex);
-        }
-
-        if (_model == SEN55)
-            json["nox"] = round2dp(t.noxIndex);
-
-        if (ISLOG_DEBUG)
-        {
-            String jsonAsString;
-            serializeJson(json, jsonAsString);
-            LOGF_DEBUG("%s", jsonAsString.c_str());
-        }
+        telemetryAsJson(t, json);
 
         // Reset timer
         _lastPublishTelemetry_ms = millis();
@@ -258,7 +255,7 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::refreshDeviceStatus()
     return 0;
 }
 
-JsonVariant OXRS_SEN5x::findNestedKey(JsonObject obj, const String &key)
+JsonVariant OXRS_SEN5x::findNestedKey(JsonObject obj, const String &key) const
 {
     JsonVariant foundObject = obj[key];
     if (!foundObject.isNull())

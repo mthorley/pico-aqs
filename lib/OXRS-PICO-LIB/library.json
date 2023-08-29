@@ -1,7 +1,7 @@
 {
-    "name": "OXRS_SEN5x",
+    "name": "OXRS_IO_PICO",
     "version": "1.0.0",
-    "description": "Sensirion 5X on OXRS",
+    "description": "OXRS on PICOW",
     "keywords": "OXRS, PICOW",
     "authors":
     [
@@ -11,7 +11,9 @@
     ],
     "license": "MIT",
     "dependencies": {
-      "Sensirion I2C SEN5X": "^0.3.0"
+      "OXRS_TIME": "^1.0.0",
+      "OXRS_LOG": "^1.0.0",
+      "aWOT": "^3.5.0"
     },
     "frameworks": "*",
     "platforms": "*"

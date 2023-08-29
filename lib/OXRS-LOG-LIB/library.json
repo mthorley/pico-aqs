@@ -1,0 +1,17 @@
+{
+    "name": "OXRS_LOG",
+    "version": "1.0.0",
+    "description": "OXRS LOG",
+    "keywords": "OXRS",
+    "authors":
+    [
+      {
+        "name": "Matt Thorley"
+      }
+    ],
+    "license": "MIT",
+    "dependencies": {
+    },
+    "frameworks": "*",
+    "platforms": "*"
+}

@@ -26,6 +26,9 @@
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 
+#define MAX_BUF_LEN 512
+static char _buffer[MAX_BUF_LEN];
+
 #define LOG_ERROR(s)  oxrsLog.log(OXRS_LOG::LogLevel_t::ERROR, _LOG_PREFIX, s)
 #define LOG_INFO(s)   oxrsLog.log(OXRS_LOG::LogLevel_t::INFO,  _LOG_PREFIX, s)
 #define LOG_WARN(s)   oxrsLog.log(OXRS_LOG::LogLevel_t::WARN,  _LOG_PREFIX, s)
@@ -169,19 +172,13 @@ public:
         inline static uint8_t PRI_INFO      = 6;
         inline static uint8_t PRI_DEBUG     = 7;
 
-        inline static uint8_t FAC_USER   = 1;
         inline static uint8_t FAC_LOCAL0 = 16;
-        inline static uint8_t FAC_LOCAL1 = 17;
-        inline static uint8_t FAC_LOCAL2 = 18;
-        inline static uint8_t FAC_LOCAL3 = 19;
-        inline static uint8_t FAC_LOCAL4 = 20;
-        inline static uint8_t FAC_LOCAL5 = 21;
-        inline static uint8_t FAC_LOCAL6 = 22;
-        inline static uint8_t FAC_LOCAL7 = 23;
 
     private:
         void send(uint8_t* pBuffer, int len);
         uint8_t getSeverity(LogLevel_t level);
+
+        void getDateTime(String& dt);
 
         WiFiUDP  _syslogger;    // FIXME: And if this is using ethernet?
         String   _hostname;

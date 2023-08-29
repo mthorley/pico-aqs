@@ -11,6 +11,7 @@
 #include <OXRS_API.h>
 #include <OXRS_LOG.h>
 #include <OXRS_IO_PICO.h>
+#include <OXRS_TIME.h>
 #include "WiFIManager.h"
 
 // #define __WATCHDOG
@@ -35,6 +36,9 @@ OXRS_API _api(_mqtt);
 // Logging
 OXRS_LOG::MQTTLogger _mqttLogger(_mqttClient);   // Logging (topic updated once MQTT connects successfully)
 OXRS_LOG::SysLogger  _sysLogger;                 // Updated on config
+
+// Time
+OXRS_TIME oxrsTime;
 
 // MQTT callbacks wrapped by _mqttConfig/_mqttCommand
 jsonCallback _onConfig;
@@ -140,11 +144,8 @@ void _mqttCallback(char *topic, uint8_t *payload, unsigned int length)
     }
 }
 
-OXRS_IO_PICO::OXRS_IO_PICO(bool useOnBoardTempSensor=false)
-    : _useOnBoardTempSensor(useOnBoardTempSensor)
-{
-
-};
+OXRS_IO_PICO::OXRS_IO_PICO(bool useOnBoardTempSensor=false) : 
+    _useOnBoardTempSensor(useOnBoardTempSensor) {};
 
 void OXRS_IO_PICO::initialiseMqtt(byte *mac)
 {
@@ -245,7 +246,14 @@ void OXRS_IO_PICO::loop()
     if (isNetworkConnected())
     {
         // handle mqtt messages
-        _mqtt.loop();
+        int res = _mqtt.loop();
+        if (ISLOG_DEBUG) 
+        {
+            if (res == MQTT_RECONNECT_FAILED)
+                LOG_DEBUG(F("Mqtt reconnect failed"));
+            if (res == MQTT_RECONNECT_BACKING_OFF)
+                LOG_DEBUG(F("Mqtt reconnect backing off"));
+        }
 
         // handle api requests
         WiFiClient client = _server.available();
@@ -376,6 +384,7 @@ void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json)
 
     // Append other config
     oxrsLog.setConfig(props);
+    oxrsTime.setConfig(props);
 }
 
 void OXRS_IO_PICO::setConfigSchema(JsonVariant json)
@@ -436,6 +445,11 @@ void OXRS_IO_PICO::initialiseWatchdog()
 #endif
 }
 
+void OXRS_IO_PICO::initialiseTime()
+{
+    oxrsTime.begin();
+}
+
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
 {
     // add MQTT and other logging
@@ -473,4 +487,7 @@ void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
 
     // setup onboard temp sensor
     initialiseTempSensor();
+
+    // setup ntp/tz
+    initialiseTime();
 }

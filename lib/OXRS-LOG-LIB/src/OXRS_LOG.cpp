@@ -33,30 +33,17 @@ void OXRS_LOG::setLevel(LogLevel_t level)
     log(INFO, "[OXRS_LOG] ", logLine);
 }
 
-// FIXME: use static char buffer to avoid memory fragmentation
-void OXRS_LOG::logf(LogLevel_t level, const char* prefix, const char *fmt, ...)
+// log lines over MAX_BUF_LEN will be truncated
+void OXRS_LOG::logf(LogLevel_t level, const char* prefix, const char* fmt, ...)
 {
-    if (level < _currentLevel)
+   if (level < _currentLevel)
         return;
 
-    size_t initialLen = strlen(fmt);
-    char *logEvent = new char[initialLen + 1];
-
-    // get length of logEvent
     va_list args;
     va_start(args, fmt);
-    size_t len = vsnprintf(logEvent, initialLen + 1, fmt, args);
-    if (len > initialLen) {
-        // extend length for logEvent
-        delete[] logEvent;
-        logEvent = new char[len + 1];
-        vsnprintf(logEvent, len + 1, fmt, args);
-    }
+    size_t len = vsnprintf(_buffer, MAX_BUF_LEN, fmt, args);
     va_end(args);
-
-    log(level, prefix, logEvent);
-
-    delete[] logEvent;
+    log(level, prefix, _buffer);
 }
 
 void OXRS_LOG::log(LogLevel_t level, const char* prefix, const __FlashStringHelper *logEvent)
@@ -266,7 +253,6 @@ void OXRS_LOG::MQTTLogger::onConfig(JsonVariant json)
 }
 
 // Syslog
-// FIXME: make this a function or load json as template
 void OXRS_LOG::SysLogger::setConfig(JsonVariant json)
 {
     JsonObject syslog = json.createNestedObject("syslog");
@@ -337,10 +323,21 @@ void OXRS_LOG::SysLogger::onConfig(JsonVariant json)
     }
 }
 
+void OXRS_LOG::SysLogger::getDateTime(String& dt)
+{
+    time_t now = time(nullptr);
+    struct tm timeinfo;
+    gmtime_r(&now, &timeinfo);
+    dt = asctime(&timeinfo);
+}
+
 void OXRS_LOG::SysLogger::log(LogLevel_t level, const __FlashStringHelper* logLine)
 {
     if (!isEnabled())
         return;
+
+    String dt;
+    getDateTime(dt);
 
     uint8_t facility = FAC_LOCAL0;
     uint8_t severity = getSeverity(level);
@@ -349,7 +346,9 @@ void OXRS_LOG::SysLogger::log(LogLevel_t level, const __FlashStringHelper* logLi
     // This is a unit8 instead of a char because that's what udp.write() wants
     uint8_t buffer[MAX_PACKET_SIZE];
     String s(logLine);
-    int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s: %s", priority, _hostname.c_str(), _app.c_str(), s);
+    int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s %s: %s", priority, dt.c_str(), _hostname.c_str(), _app.c_str(), s);
+
+//Aug 26 17:00:47
 
     // Send the raw UDP packet
     send(buffer, len);
@@ -360,13 +359,16 @@ void OXRS_LOG::SysLogger::log(LogLevel_t level, const char* logLine)
     if (!isEnabled())
         return;
 
+    String dt;
+    getDateTime(dt);
+
     uint8_t facility = FAC_LOCAL0;
     uint8_t severity = getSeverity(level);
     uint8_t priority = (8 * facility) + severity;
 
     // This is a unit8 instead of a char because that's what udp.write() wants
     uint8_t buffer[MAX_PACKET_SIZE];
-    int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s: %s", priority, _hostname.c_str(), _app.c_str(), logLine);
+    int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s %s: %s", priority, dt.c_str(), _hostname.c_str(), _app.c_str(), logLine);
 
     // Send the raw UDP packet
     send(buffer, len);
@@ -377,13 +379,16 @@ void OXRS_LOG::SysLogger::log(LogLevel_t level, String& logLine)
     if (!isEnabled())
         return;
 
+    String dt;
+    getDateTime(dt);
+
     uint8_t facility = FAC_LOCAL0;
     uint8_t severity = getSeverity(level);
     uint8_t priority = (8 * facility) + severity;
 
     // This is a unit8 instead of a char because that's what udp.write() wants
     uint8_t buffer[MAX_PACKET_SIZE];
-    int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s: %s", priority, _hostname.c_str(), _app.c_str(), logLine.c_str());
+    int len = snprintf((char*)buffer, MAX_PACKET_SIZE, "<%d>%s %s %s: %s", priority, dt.c_str(), _hostname.c_str(), _app.c_str(), logLine.c_str());
 
     // Send the raw UDP packet
     send(buffer, len);

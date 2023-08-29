@@ -1,0 +1,17 @@
+{
+    "name": "OXRS_TIME",
+    "version": "1.0.0",
+    "description": "OXRS Time",
+    "keywords": "OXRS",
+    "authors":
+    [
+      {
+        "name": "Matt Thorley"
+      }
+    ],
+    "license": "MIT",
+    "dependencies": {
+    },
+    "frameworks": "*",
+    "platforms": "*"
+}

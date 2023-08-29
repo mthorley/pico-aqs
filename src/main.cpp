@@ -13,7 +13,7 @@ WiFiManager wm;
 #endif
 
 // OXRS layer
-bool usePicoOnboardTempSensor = true;
+bool usePicoOnboardTempSensor = false;
 OXRS_IO_PICO oxrsPico(usePicoOnboardTempSensor);
 
 // Sensirion air quality sensor
@@ -79,7 +79,8 @@ void publishHassDiscovery()
     if (hassDiscoveryPublished)
         return;
 
-    char topic[64];
+    char topic[128];
+    oxrsPico.getMQTT()->getTelemetryTopic(topic);
 
     char component[8];
     sprintf(component, "sensor");
@@ -92,17 +93,17 @@ void publishHassDiscovery()
     json["name"]         = "Temperature";
     json["dev_cla"]      = "temperature";
     json["unit_of_meas"] = "°C";
-    json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
+    json["stat_t"]       = topic;
     json["val_tpl"]      = "{{ value_json.temp }}";
     json["frc_upd"]      = true;
-    hass.publishDiscoveryJson(json, component, id);
-
+//    hass.publishDiscoveryJson(json, component, id);
+/*
     sprintf(id, "humidity");
     hass.getDiscoveryJson(json, id);
     json["name"]         = "Humidity";
     json["dev_cla"]      = "humidity";
     json["unit_of_meas"] = "%";
-    json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
+    json["stat_t"]       = topic;
     json["val_tpl"]      = "{{ value_json.hum }}";
     json["frc_upd"]      = true;
     hass.publishDiscoveryJson(json, component, id);
@@ -112,7 +113,7 @@ void publishHassDiscovery()
     json["name"]         = "Nitrous Oxide";
     json["dev_cla"]      = "nitrous_oxide";
     json["unit_of_meas"] = "ug/m3";
-    json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
+    json["stat_t"]       = topic;
     json["val_tpl"]      = "{{ value_json.nox }}";
     json["frc_upd"]      = true;
     hass.publishDiscoveryJson(json, component, id);
@@ -122,7 +123,7 @@ void publishHassDiscovery()
     json["name"]         = "Volatile Organic Compounds";
     json["dev_cla"]      = "volatile_organic_compounds";
     json["unit_of_meas"] = "ug/m3";
-    json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
+    json["stat_t"]       = topic;
     json["val_tpl"]      = "{{ value_json.vox }}";
     json["frc_upd"]      = true;
     hass.publishDiscoveryJson(json, component, id);
@@ -132,7 +133,7 @@ void publishHassDiscovery()
     json["name"]         = "Particulate Matter pm1.0";
     json["dev_cla"]      = "pm1";
     json["unit_of_meas"] = "ug/m3";
-    json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
+    json["stat_t"]       = topic;
     json["val_tpl"]      = "{{ value_json.pm1p0 }}";
     json["frc_upd"]      = true;
     hass.publishDiscoveryJson(json, component, id);
@@ -142,8 +143,18 @@ void publishHassDiscovery()
     json["name"]         = "Particulate Matter pm2.5";
     json["dev_cla"]      = "pm25";
     json["unit_of_meas"] = "ug/m3";
-    json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
+    json["stat_t"]       = topic;
     json["val_tpl"]      = "{{ value_json.pm2p5 }}";
+    json["frc_upd"]      = true;
+    hass.publishDiscoveryJson(json, component, id);
+
+    sprintf(id, "pm40");
+    hass.getDiscoveryJson(json, id);
+    json["name"]         = "Particulate Matter pm4.0";
+    json["dev_cla"]      = "pm40";
+    json["unit_of_meas"] = "ug/m3";
+    json["stat_t"]       = topic;
+    json["val_tpl"]      = "{{ value_json.pm4p0 }}";
     json["frc_upd"]      = true;
     hass.publishDiscoveryJson(json, component, id);
 
@@ -155,7 +166,7 @@ void publishHassDiscovery()
     json["stat_t"]       = oxrsPico.getMQTT()->getTelemetryTopic(topic);
     json["val_tpl"]      = "{{ value_json.pm10p0 }}";
     json["frc_upd"]      = true;
-
+*/
     // Only publish once on boot
     hassDiscoveryPublished = hass.publishDiscoveryJson(json, component, id);
     LOG_DEBUG(F("haas published"));
@@ -177,9 +188,6 @@ void setup()
     setConfigSchema();
     setCommandSchema();
 
-    // add any custom apis
-    // addCustomApis();
-
     // setup Sensirion AQS
     oxrsSen5x.begin(Wire);
 }
@@ -194,7 +202,15 @@ void loop()
     oxrsSen5x.getTelemetry(telemetry.as<JsonVariant>());
     if (telemetry.size() > 0)
     {
-        oxrsPico.publishTelemetry(telemetry);
+        oxrsPico.publishTelemetry(telemetry.as<JsonVariant>());
+
+        if (ISLOG_DEBUG)
+        {
+            String jsonAsString;
+            serializeJson(telemetry, jsonAsString);
+            LOGF_DEBUG("%s", jsonAsString.c_str());
+        }
+
         if (usePicoOnboardTempSensor) {
             float temperature = oxrsPico.readOnboardTemperature();
             LOGF_INFO("Pico onboard temperature = %.02f %c", temperature, 'C');
