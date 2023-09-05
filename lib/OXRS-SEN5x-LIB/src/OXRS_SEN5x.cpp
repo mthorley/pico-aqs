@@ -22,7 +22,10 @@ OXRS_SEN5x::OXRS_SEN5x(SEN5x_model_t model) :
     _deviceStatus(model),
     _publishTelemetry_ms(DEFAULT_PUBLISH_TELEMETRY_MS),
     _tempOffset_celsius(DEFAULT_TEMP_OFFSET_C),
-    _lastPublishTelemetry_ms(0) {};
+    _lastPublishTelemetry_ms(0),
+    _deviceReady(false)
+{
+};
 
 void OXRS_SEN5x::begin(TwoWire &wire)
 {
@@ -33,9 +36,10 @@ void OXRS_SEN5x::begin(TwoWire &wire)
     if (error)
     {
         logError(error, F("Error trying to execute deviceReset():"));
+        return;
     }
 
-// Print SEN55 module information if i2c buffers are large enough
+// Print SEN5x module information if i2c buffers are large enough
 #ifdef USE_PRODUCT_INFO
     String serialNo;
     error = getSerialNumber(serialNo);
@@ -49,6 +53,8 @@ void OXRS_SEN5x::begin(TwoWire &wire)
 #endif
 
     initialiseDevice();
+
+    _deviceReady = true;
 }
 
 void OXRS_SEN5x::initialiseDevice()
@@ -76,6 +82,9 @@ OXRS_SEN5x::Error_t OXRS_SEN5x::getMeasurements(SEN5x_telemetry_t &t)
 
 void OXRS_SEN5x::loop()
 {
+    if (!_deviceReady)
+        return;
+
     if (_model != SEN50)
     { // must be done post begin
         float current_offset;

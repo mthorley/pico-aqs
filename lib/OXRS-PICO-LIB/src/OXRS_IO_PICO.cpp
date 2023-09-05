@@ -12,7 +12,7 @@
 #include <OXRS_LOG.h>
 #include <OXRS_IO_PICO.h>
 #include <OXRS_TIME.h>
-#include "WiFIManager.h"
+#include "WiFiManager.h"
 
 // #define __WATCHDOG
 
@@ -205,8 +205,8 @@ void OXRS_IO_PICO::initialiseNetwork(byte *mac)
 
     // Connect using saved creds, or start captive portal if none found
     // NOTE: Blocks until connected or the portal is closed
-    WiFiManager wm;
-    bool success = wm.autoConnect("OXRS_WiFi", "superhouse");
+    WiFiManager wm("OXRS_WiFi", "superhouse");
+    bool success = wm.autoConnect();
     String s = success ? WiFi.localIP().toString() : IPAddress(0, 0, 0, 0).toString();
     LOGF_INFO("network %s", s.c_str());
 }
@@ -247,13 +247,10 @@ void OXRS_IO_PICO::loop()
     {
         // handle mqtt messages
         int res = _mqtt.loop();
-        if (ISLOG_DEBUG) 
-        {
-            if (res == MQTT_RECONNECT_FAILED)
-                LOG_DEBUG(F("Mqtt reconnect failed"));
-            if (res == MQTT_RECONNECT_BACKING_OFF)
-                LOG_DEBUG(F("Mqtt reconnect backing off"));
-        }
+/*        if (res == MQTT_RECONNECT_FAILED)
+            LOG_ERROR(F("Mqtt reconnect failed"));
+        if (res == MQTT_RECONNECT_BACKING_OFF)
+            LOG_ERROR(F("Mqtt reconnect backing off"));*/
 
         // handle api requests
         WiFiClient client = _server.available();
@@ -452,6 +449,7 @@ void OXRS_IO_PICO::initialiseTime()
 
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
 {
+// FIXME: Move this to after initaliseNetwork?
     // add MQTT and other logging
     oxrsLog.addLogger(&_sysLogger);
     oxrsLog.addLogger(&_mqttLogger);

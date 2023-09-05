@@ -79,4 +79,5 @@ private:
     SensirionI2CSen5x _sensor;              // i2c library
     SEN5x_model_t     _model;               // sensor model
     SEN5xDeviceStatus _deviceStatus;        // sensor device status
+    bool              _deviceReady;         // device connected and successfully reset
 };
