@@ -2,43 +2,28 @@
 #include <hardware/sync.h>
 #include <OXRS_LOG.h>
 #include <LittleFS.h>
-#include "WiFiManager.h"
-#include "WiFiManagerAssets.h"
+#include <WiFiManager.h>
+#include <WiFiManagerAssets.h>
 
 /*
 Tasks
 x update content of pages and OXRS LOGO
 x maxlength on inputs
+- fix lock icon size
+- writing of creds to EEPROM and retrieval
 - replace serial with OXRS_LOG
-- validation of ssid, pwd for type and length
 - unit tests for EEPROM creds
+- validation of ssid, pwd for type and length
 - move WebServer and DNS to pointers so the destructor cleans em up
 x template the html pages
 o implement TLS
 */
 
-/* hostname for mDNS. Should work at least on windows. Try http://oxrs.local */
-const char *myHostname = "oxrs";
-
 // DNS server
-const byte DNS_PORT = 53;
 DNSServer dnsServer;
 
 // Web server
 WebServer server(80);
-
-/* AP network parameters */
-IPAddress apIP(192, 168, 42, 1);
-IPAddress netMsk(255, 255, 255, 0);
-
-/** Should I connect to WLAN asap? */
-boolean connectToWlan;
-
-/** Last time I tried to connect to WLAN */
-unsigned long lastConnectTry = 0;
-
-/** Current WLAN status */
-unsigned int status = WL_IDLE_STATUS;
 
 // FIXME:
 // #define __USE_CREDENTIALS
@@ -49,10 +34,17 @@ unsigned int status = WL_IDLE_STATUS;
 
 static const char *_LOG_PREFIX = "[WiFiManager] ";
 
-WiFiManager::WiFiManager(const char *apName, const char *apPassword) : 
+// AccessPoint network config
+const IPAddress WiFiManager::AP_IP = IPAddress(192,168,42,1);
+
+WiFiManager::WiFiManager(const char *apName, const char *apPassword) :
     _wlanSSID(""),
     _wlanPassword(""),
-    _setupConfigPortal(false)
+    _setupConfigPortal(false),
+    _accessPointRunning(false),
+    _connectionAttempts(0),
+    _currentState(State_t::START),
+    _previousState(State_t::STOP)
 {
     strncpy(_apSSID, apName, 32);
     strncpy(_apPassword, apPassword, 32);
@@ -65,10 +57,20 @@ WiFiManager::~WiFiManager()
 }
 
 // clears credentials in memory only (not in EEPROM emulation)
-void WiFiManager::clearWlanCredentials()
+void WiFiManager::clearCredentials()
 {
     strcpy(_wlanSSID, "");
     strcpy(_wlanPassword, "");
+}
+
+void WiFiManager::saveCredentials(wifi_credentials_t creds)
+{
+    EEPROM.put(0, creds);
+}
+
+void WiFiManager::loadCredentials(wifi_credentials_t& creds)
+{
+    EEPROM.get(0, creds);
 }
 
 #ifdef __USE_CREDENTIALS
@@ -137,138 +139,86 @@ void WiFiManager::readCredentials(wifi_credentials_t &creds)
 
 bool WiFiManager::credentialsExist()
 {
-    // FIXME: read flash
-    return false;
+    return false;   // FIXME: how will we know?
 }
 
-bool configured = false;
+void WiFiManager::cycleStateMachine()
+{
+    if (_previousState != _currentState)
+        LOGF_DEBUG("Current state %d", _currentState);
+
+    switch(_currentState) {
+        case START:
+            // move to LOAD_CREDENTIALS
+            _currentState = LOAD_CREDENTIALS;
+            // initialise state variables
+            _accessPointRunning = false;
+            _setupConfigPortal = false;
+            _connectionAttempts = 0;
+            break;
+
+        case LOAD_CREDENTIALS:
+            // attempt to load WiFi credentials from EEPROM
+            if (credentialsExist()) {
+                LOG_DEBUG(F("Credentials exist"));
+                loadCredentials();
+                _currentState = CONNECT_TO_WLAN;
+            }
+            else {
+                LOG_DEBUG(F("Credentials do not exist"));
+                _currentState = SHOW_PORTAL;
+            }
+            break;
+
+        case SHOW_PORTAL:
+            // spin up captive portal
+            startConfigPortal();        // portal wifi page form submit will move the state to SAVE_CREDENTIALS
+            break;
+
+        case SAVE_CREDENTIALS:
+            saveCredentials();
+            _connectionAttempts = 0;
+            _currentState = CONNECT_TO_WLAN;
+            break;
+
+        case CONNECT_TO_WLAN:
+            if (connectWifi() != WL_CONNECTED) {
+                _connectionAttempts++;
+                delay(500);             // give it some time
+            }
+            else {
+                _currentState = STOP;
+            }
+
+            if (_connectionAttempts > MAX_CONNECTION_ATTEMPTS-1) {
+                _accessPointRunning = false;    // reinitialise AP
+                _currentState = SHOW_PORTAL;
+            }
+            break;
+
+        case STOP:
+            // done
+            break;
+    }
+
+    // if the config portal has been setup, handle dns and web requests
+    if (_setupConfigPortal) {
+        dnsServer.processNextRequest();
+        server.handleClient();
+    }
+
+    if (_previousState != _currentState)
+        LOGF_DEBUG("Transitioned to state %d", _currentState);
+
+    _previousState = _currentState;
+}
 
 bool WiFiManager::autoConnect()
 {
-    LOG_DEBUG(F("autoConnect"));
-
-    int8_t res = WL_IDLE_STATUS;
-    Serial.println("loading credentials");
-    //    loadCredentials();
-    if (strlen(_wlanSSID) > 0)
-    {
-        // attempt to connect to WLAN
-        WiFi.begin(_wlanSSID, _wlanPassword);
-        res = WiFi.waitForConnectResult();
-        Serial.print("res") + Serial.println(res);
-    }
-    else
-    {
-        Serial.println("No SSID stored");
-    }
-
-    if (res != WL_CONNECTED)
-    {
-        // create a WiFi AP and captive portal
-        startConfigPortal();
-        while (!configured)
-            loop();
-    }
-
-    // FIXME:
+    // iterate through state machine until we have configured WiFi
+    while (_currentState != State_t::STOP)
+        cycleStateMachine();
     return true;
-}
-
-int8_t WiFiManager::connectWifi()
-{
-//    Serial.println("Connecting as wifi client...");
-    LOG_DEBUG(F("Connecting as wifi client"));
-
-    WiFi.disconnect();
-    WiFi.begin(_wlanSSID, _wlanPassword);
-    int8_t connRes = WiFi.waitForConnectResult();
-
-    LOGF_DEBUG("Connection result %d", connRes);
-//    Serial.print("connRes: ");
-//    Serial.println(connRes);
-
-    return connRes;
-}
-
-void WiFiManager::loop()
-{
-    if (connectToWlan)
-    {
-        Serial.println("Connect requested");
-        connectToWlan = false;
-        int8_t res = connectWifi();
-        lastConnectTry = millis();
-        if (res == WL_CONNECTED)
-            configured = true;
-        else
-        {
-            clearWlanCredentials();
-            startConfigPortal();
-        }
-    }
-
-    {
-        unsigned int s = WiFi.status();
-        if (s == WL_IDLE_STATUS && millis() > (lastConnectTry + 60000))
-        {
-            /* If WLAN disconnected and idle try to connect */
-            /* Don't set retry time too low as retry interfere the AP operation */
-            connectToWlan = true;
-        }
-        if (status != s)
-        { // WLAN status change
-            Serial.print("Status: ");
-            Serial.println(s);
-            status = s;
-            if (s == WL_CONNECTED)
-            {
-
-                /* Just connected to WLAN */
-                Serial.println("");
-                Serial.print("Connected to ");
-                Serial.println(_wlanSSID);
-                Serial.print("IP address: ");
-                Serial.println(WiFi.localIP());
-
-                // Setup MDNS responder
-                if (!MDNS.begin(myHostname))
-                {
-                    Serial.println("Error setting up MDNS responder!");
-                }
-                else
-                {
-                    Serial.println("mDNS responder started");
-                    // Add service to MDNS-SD
-                    MDNS.addService("http", "tcp", 80);
-                }
-            }
-            else if (s == WL_NO_SSID_AVAIL)
-            {
-                WiFi.disconnect();
-            }
-        }
-        if (s == WL_CONNECTED)
-        {
-            MDNS.update();
-        }
-    }
-    // Do work:
-    // DNS
-    dnsServer.processNextRequest();
-    // HTTP
-    server.handleClient();
-}
-
-/** IP to String? */
-String toStringIp(IPAddress ip)
-{
-    String res = "";
-    for (int i = 0; i < 3; i++)
-    {
-        res += String((ip >> (8 * i)) & 0xFF) + ".";
-    }
-    res += String(((ip >> 8 * 3)) & 0xFF);
-    return res;
 }
 
 /** Is this an IP? */
@@ -285,17 +235,120 @@ boolean isIp(String str)
     return true;
 }
 
+//---------------------------------------------------
+
+/**
+ * Convert WL_STATUS into String for logging.
+ */
+void WiFiManager::getWL_StatusAsString(String& status, const int8_t wlStatus)
+{
+    switch (wlStatus)
+    {
+        case WL_IDLE_STATUS:
+            status = "WL_IDLE_STATUS";
+            break;
+        case WL_NO_SSID_AVAIL:
+            status = "WL_NO_SSID_AVAIL";
+            break;
+        case WL_SCAN_COMPLETED:
+            status = "WL_SCAN_COMPLETED";
+            break;
+        case WL_CONNECTED:
+            status = "WL_CONNECTED";
+            break;
+        case WL_CONNECT_FAILED:
+            status = "WL_CONNECT_FAILED";
+            break;
+        case WL_CONNECTION_LOST:
+            status = "WL_CONNECTION_LOST";
+            break;
+        case WL_DISCONNECTED:
+            status = "WL_DISCONNECTED";
+            break;
+        default:
+            status = "Unknown";
+            break;
+    }
+}
+
+/**
+ * Connect to configured WLAN WiFi
+ *
+ * @return int8_t connection result
+ */
+int8_t WiFiManager::connectWifi()
+{
+    LOGF_DEBUG("Connecting as wifi client to SSID %s", _wlanSSID);
+
+    WiFi.disconnect();
+    WiFi.begin(_wlanSSID, _wlanPassword);
+    int8_t res = WiFi.waitForConnectResult(MAX_TIMEOUT_MS);
+
+    String s;
+    getWL_StatusAsString(s, res);
+    LOGF_DEBUG("Connection result %s", s.c_str());
+
+    return res;
+}
+
+/**
+ * Create access point and register and serve web content for
+ * the captive portal.
+ */
+bool WiFiManager::startConfigPortal()
+{
+    if (!_accessPointRunning) {
+        // Go into AP mode, configure IP (so DNS can use it)
+        WiFi.config(AP_IP);
+        WiFi.beginAP(_apSSID, _apPassword);
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            delay(500);
+            Serial.print(".");  // waiting
+        }
+
+        delay(500);             // wait for AP to stabalise
+
+        String ip = WiFi.localIP().toString();
+        LOGF_DEBUG("AccessPoint IP address %s", ip.c_str());
+        _accessPointRunning = true;
+    }
+
+    // only setup config portal once
+    if (!_setupConfigPortal)
+    {
+        LOG_DEBUG(F("Starting config portal"));
+
+        // Setup the DNS server redirecting all domains to the AP_IP
+        dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+        dnsServer.start(DNS_PORT, "*", AP_IP);
+
+        // Setup web pages: root, wifi config and not found
+        server.on("/", std::bind(&WiFiManager::handleRoot, this));
+        server.on("/wifi", std::bind(&WiFiManager::handleWifi, this));
+        server.on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
+        server.onNotFound(std::bind(&WiFiManager::handleNotFound, this));
+        server.begin();             // Web server start
+
+        LOG_DEBUG(F("HTTP server started"));
+        _setupConfigPortal = true;
+    }
+
+    return _setupConfigPortal;
+}
+
 /** 
  * Redirect to captive portal if we got a request for another domain. 
- * Return true in that case so the page handler do not try to handle the request again.
+ * Return true in that case so the page handler does not try to handle the request again.
  */
-bool WiFiManager::redirectToPortal()
+bool WiFiManager::redirectToPortal() const
 {
-    if (!isIp(server.hostHeader()) && server.hostHeader() != (String(myHostname) + ".local"))
+    if (!isIp(server.hostHeader()) && server.hostHeader() != (String(HOSTNAME) + ".local"))
     {
         LOG_DEBUG(F("Request redirected to captive portal"));
 
-        server.sendHeader("Location", String("http://") + toStringIp(server.client().localIP()), true);
+        IPAddress ip = server.client().localIP();
+        server.sendHeader("Location", String("http://") + ip.toString(), true);
         server.send(302, "text/plain", "");     // Empty content inhibits Content-length header so we have to close the socket ourselves.
         server.client().stop();                 // Stop is needed because we sent no content length
 
@@ -304,6 +357,9 @@ bool WiFiManager::redirectToPortal()
     return false;
 }
 
+/**
+ * Send standard HTTP headers
+ */
 void WiFiManager::sendStandardHeaders()
 {
     server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -331,18 +387,21 @@ void WiFiManager::handleRoot()
     server.send(200, "text/html", html);
 }
 
-void WiFiManager::getSignalStrength(String& signal, int32_t strength)
+/**
+ * Converts RSSI into a CSS style to indicate WiFi network signal strength.
+ */
+void WiFiManager::getSignalStrength(String& cssStyle, const int32_t rssi) const
 {
-    if (strength <-60)
-        signal = "strong";
-    else if(strength <-80)
-        signal = "medium";
+    if (rssi < STRONG_RSSI_THRESHOLD)
+        cssStyle = "strong";
+    else if(rssi < MEDIUM_RSSI_THRESHOLD)
+        cssStyle = "medium";
     else
-        signal = "weak";
+        cssStyle = "weak";
 }
 
 /**
- * Show available wifi networks 
+ * Show available wifi networks.
  */
 void WiFiManager::handleWifi()
 {
@@ -358,8 +417,7 @@ void WiFiManager::handleWifi()
     LOG_DEBUG(F("Network scan complete"));
 
     if (n > 0) {
-        for (int i = 0; i < n; i++)
-        {
+        for (int i = 0; i < n; i++) {
             if ( strlen(WiFi.SSID(i)) > 0 )     // ignore hidden SSIDs
             {
                 String network(wifi_network);
@@ -369,8 +427,7 @@ void WiFiManager::handleWifi()
                 getSignalStrength(signal, WiFi.RSSI(i));
                 network.replace("${signal}", signal);
 
-                network.replace("${network.security}", 
-                    WiFi.encryptionType(i) == ENC_TYPE_NONE ? "unlock" : "lock");
+                network.replace("${network.security}", WiFi.encryptionType(i) == ENC_TYPE_NONE ? "unlock" : "lock");
                 networks += network;
             }
         }
@@ -379,24 +436,28 @@ void WiFiManager::handleWifi()
         networks = F("<tr><td>No networks found</td></tr>");
     }
 
+    WiFi.scanDelete();
+
     html.replace("${networks}", networks);
     server.send(200, "text/html", html);
     server.client().stop();                 // Stop is needed because we sent no content length
 }
 
-/** Handle the WLAN save form and redirect to WLAN config page again */
+/**
+ * Process the WiFi save form, save credentials and redirect to WiFi config page again. 
+ */
 void WiFiManager::handleWifiSave()
 {
-    LOG_DEBUG(F("wifi save"));
+    LOG_DEBUG(F("Handle WiFi save"));
 
     server.arg("n").toCharArray(_wlanSSID, sizeof(_wlanSSID) - 1);
     server.arg("p").toCharArray(_wlanPassword, sizeof(_wlanPassword) - 1);
     server.sendHeader("Location", "wifi", true);
     sendStandardHeaders();
-    server.send(302, "text/plain", ""); // Empty content inhibits Content-length header so we have to close the socket ourselves.
-    server.client().stop();             // Stop is needed because we sent no content length
-    saveCredentials();
-    connectToWlan = strlen(_wlanSSID) > 0; // Request WLAN connect with new credentials if there is a SSID
+    server.send(302, "text/plain", "");     // Empty content inhibits Content-length header so we have to close the socket ourselves.
+    server.client().stop();                 // Stop is needed because we sent no content length
+    
+    _currentState = State_t::SAVE_CREDENTIALS;      // force next step in state machine
 }
 
 void WiFiManager::saveCredentials()
@@ -441,48 +502,6 @@ void WiFiManager::handleNotFound()
     sendStandardHeaders();
     server.send(404, "text/plain", message);
 //FIXME: button to get back home?
-}
-
-bool WiFiManager::startConfigPortal()
-{
-    LOG_DEBUG(F("Starting config portal"));
-
-    // go into AP mode
-    WiFi.beginAP(_apSSID, _apPassword);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-
-    delay(500); // Without delay I've seen the IP address blank
-//    Serial.print("AP IP address: ");
-//    Serial.println(WiFi.localIP());
-    LOGF_DEBUG("AP IP address %s", WiFi.localIP().toString().c_str());
-
-    if (!_setupConfigPortal)
-    {
-        /* Setup the DNS server redirecting all the domains to the apIP */
-        dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-        dnsServer.start(DNS_PORT, "*", apIP);
-
-        /* Setup web pages: root, wifi config pages, SO captive portal detectors and not found. */
-        server.on("/", std::bind(&WiFiManager::handleRoot, this));
-        server.on("/wifi", std::bind(&WiFiManager::handleWifi, this));
-        server.on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
-        // FIXME: check Android and Windows still have captive portal even with these commented out
-        //        server.on("/fwlink", std::bind(&WiFiManager::handleRoot, this));  //Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
-        server.onNotFound(std::bind(&WiFiManager::handleNotFound, this));
-        server.begin();             // Web server start
-//        Serial.println("HTTP server started");
-        LOG_DEBUG(F("HTTP server started"));
-        _setupConfigPortal = true;
-    }
-
-    //    loadCredentials(); // Load WLAN credentials from network
-    //    connect = strlen(_wlanSSID) > 0; // Request WLAN connect if there is a SSID
-
-    return true;
 }
 
 #endif
