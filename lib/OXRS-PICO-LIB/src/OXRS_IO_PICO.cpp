@@ -12,7 +12,7 @@
 #include <OXRS_LOG.h>
 #include <OXRS_IO_PICO.h>
 #include <OXRS_TIME.h>
-#include "WiFiManager.h"
+#include <WiFiManager.h>
 
 // #define __WATCHDOG
 
@@ -207,8 +207,8 @@ void OXRS_IO_PICO::initialiseNetwork(byte *mac)
     // NOTE: Blocks until connected or the portal is closed
     WiFiManager wm("OXRS_WiFi", "superhouse");
     bool success = wm.autoConnect();
-    String s = success ? WiFi.localIP().toString() : IPAddress(0, 0, 0, 0).toString();
-    LOGF_INFO("network %s", s.c_str());
+    String ip = success ? WiFi.localIP().toString() : IPAddress(0, 0, 0, 0).toString();
+    LOGF_INFO("network %s", ip.c_str());
 }
 
 void OXRS_IO_PICO::initialiseTempSensor()
@@ -247,10 +247,6 @@ void OXRS_IO_PICO::loop()
     {
         // handle mqtt messages
         int res = _mqtt.loop();
-/*        if (res == MQTT_RECONNECT_FAILED)
-            LOG_ERROR(F("Mqtt reconnect failed"));
-        if (res == MQTT_RECONNECT_BACKING_OFF)
-            LOG_ERROR(F("Mqtt reconnect backing off"));*/
 
         // handle api requests
         WiFiClient client = _server.available();
