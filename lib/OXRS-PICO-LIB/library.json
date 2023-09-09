@@ -13,7 +13,8 @@
     "dependencies": {
       "OXRS_TIME": "^1.0.0",
       "OXRS_LOG": "^1.0.0",
-      "aWOT": "^3.5.0"
+      "aWOT": "^3.5.0",
+      "CRC": "^1.0.1"
     },
     "frameworks": "*",
     "platforms": "*"
