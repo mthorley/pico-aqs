@@ -12,7 +12,6 @@
     "license": "MIT",
     "dependencies": {
       "Sensirion I2C SEN5X": "^0.3.0"
-
     },
     "frameworks": "*",
     "platforms": "*"

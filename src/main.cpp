@@ -5,13 +5,6 @@
 #include <OXRS_HASS.h>
 #include <OXRS_SEN5x.h>
 
-//#define __TESTING
-
-#ifdef __TESTING
-#include <WiFIManager.h>
-WiFiManager wm;
-#endif
-
 // OXRS layer
 bool usePicoOnboardTempSensor = false;
 OXRS_IO_PICO oxrsPico(usePicoOnboardTempSensor);
@@ -172,14 +165,18 @@ void publishHassDiscovery()
     LOG_DEBUG(F("haas published"));
 }
 
-#ifndef __TESTING
 void setup()
 {
     Serial.begin();
 
-    Wire.begin();
+    while(!Serial) {
+        ; // wait for serial port to connect. Needed for native USB
+    }
 
-    delay(250); // Give the serial terminal a chance to connect, if present
+//    delay(1000);            // Give the serial terminal a chance to connect, if present
+    Serial.println("Serial initialised");
+
+    Wire.begin();
 
     // jsonConfig and jsonCommand are callbacks invoked when the admin API/UI updates
     oxrsPico.begin(jsonConfig, jsonCommand);
@@ -223,33 +220,3 @@ void loop()
         publishHassDiscovery();
     }
 }
-#endif
-
-#ifdef __TESTING
-
-void setup() {
-
-    wifi_credentials_t creds;
-    strcpy(creds.ssid, "halfife");
-    strcpy(creds.pwd, "secret");
-//    wm.writeCredentials(creds);
-
-const char *ssid = "OXRS_WiFi";
-const char *password = "superhouse";
-    wm.startConfigPortal(ssid, password);
-}
-
-void loop() {
-
-    bool doOnce = true;
-
-    if (!doOnce) {
-        wifi_credentials_t creds;
-        wm.readCredentials(creds);
-        Serial.println(creds.ssid);
-        Serial.println(creds.pwd);
-        doOnce = true;
-    }
-}
-
-#endif
