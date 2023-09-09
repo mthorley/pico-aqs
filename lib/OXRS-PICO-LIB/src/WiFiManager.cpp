@@ -1,5 +1,3 @@
-#include <hardware/flash.h>
-#include <hardware/sync.h>
 #include <OXRS_LOG.h>
 #include <LittleFS.h>
 #include <WiFiManager.h>
@@ -7,16 +5,9 @@
 
 /*
 Tasks
-x update content of pages and OXRS LOGO
-x maxlength on inputs
-- fix lock icon size
-- writing of creds to EEPROM and retrieval
-- replace serial with OXRS_LOG
 - unit tests for EEPROM creds
 - validation of ssid, pwd for type and length
 - move WebServer and DNS to pointers so the destructor cleans em up
-x template the html pages
-o implement TLS
 */
 
 // DNS server
@@ -24,13 +15,6 @@ DNSServer dnsServer;
 
 // Web server
 WebServer server(80);
-
-// FIXME:
-// #define __USE_CREDENTIALS
-
-#if defined(__USE_CREDENTIALS)
-#include "Credentials.h"
-#endif
 
 static const char *_LOG_PREFIX = "[WiFiManager] ";
 
@@ -56,90 +40,13 @@ WiFiManager::~WiFiManager()
 {
 }
 
-// clears credentials in memory only (not in EEPROM emulation)
-void WiFiManager::clearCredentials()
+bool WiFiManager::autoConnect()
 {
-    strcpy(_wlanSSID, "");
-    strcpy(_wlanPassword, "");
-}
+    // iterate through state machine until we have configured WiFi
+    while (_currentState != State_t::STOP)
+        cycleStateMachine();
 
-void WiFiManager::saveCredentials(wifi_credentials_t creds)
-{
-    EEPROM.put(0, creds);
-}
-
-void WiFiManager::loadCredentials(wifi_credentials_t& creds)
-{
-    EEPROM.get(0, creds);
-}
-
-#ifdef __USE_CREDENTIALS
-bool WiFiManager::autoConnect(char const *apName, char const *apPassword)
-{
-    int status;
-    while (status != WL_CONNECTED)
-    {
-        LOGF_DEBUG("Attempting to connect to WPA SSID: %s", WIFI_SSID);
-
-        // Connect to WPA/WPA2 network:
-        status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // Set these credentials
-
-        // wait to connect:
-        delay(5000);
-    }
-
-    if (status == WL_CONNECTED)
-    {
-        LOGF_INFO("Connected to WPA SSID: %s", WIFI_SSID);
-    }
-
-    LOGF_INFO("Device IPv4: %s MAC: %s", WiFi.localIP().toString().c_str(), WiFi.macAddress().c_str());
     return true;
-}
-#endif
-
-#ifndef __USE_CREDENTIALS
-#ifdef __DEPRECATED__
-void WiFiManager::writeCredentials(const wifi_credentials_t &creds)
-{
-    char buf[FLASH_PAGE_SIZE /* /sizeof(char) */];
-
-    // Using fixed position in memory rather than serialisation
-    // to reduce likelihood of a read error on changes to the struct
-    strcpy(&buf[FLASH_POS_SSID], creds.ssid);
-    strcpy(&buf[FLASH_POS_PWD], creds.pwd);
-
-    uint32_t ints = save_and_disable_interrupts();
-
-    // Erase the last sector of the flash
-    flash_range_erase((PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE), FLASH_SECTOR_SIZE);
-
-    // Program buf[] into the first page of this sector
-    flash_range_program((PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE), (uint8_t *)buf, FLASH_PAGE_SIZE);
-
-    restore_interrupts(ints);
-}
-
-void WiFiManager::readCredentials(wifi_credentials_t &creds)
-{
-// Flash-based address of the last sector
-#define FLASH_TARGET_OFFSET (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE)
-
-    char *p;
-    int addr, value;
-
-    // Compute the memory-mapped address, remembering to include the offset for RAM
-    addr = XIP_BASE + FLASH_TARGET_OFFSET;
-
-    p = (char *)addr;
-    strncpy(creds.ssid, p + FLASH_POS_SSID, SSID_OR_PWD_LEN);
-    strncpy(creds.pwd, p + FLASH_POS_PWD, SSID_OR_PWD_LEN);
-}
-#endif
-
-bool WiFiManager::credentialsExist()
-{
-    return false;   // FIXME: how will we know?
 }
 
 void WiFiManager::cycleStateMachine()
@@ -149,30 +56,25 @@ void WiFiManager::cycleStateMachine()
 
     switch(_currentState) {
         case START:
-            // move to LOAD_CREDENTIALS
-            _currentState = LOAD_CREDENTIALS;
-            // initialise state variables
+            _currentState = LOAD_CREDENTIALS;               // move to LOAD_CREDENTIALS, initialise state variables
             _accessPointRunning = false;
             _setupConfigPortal = false;
             _connectionAttempts = 0;
             break;
 
-        case LOAD_CREDENTIALS:
-            // attempt to load WiFi credentials from EEPROM
-            if (credentialsExist()) {
+        case LOAD_CREDENTIALS:                              // attempt to load WiFi credentials from EEPROM
+            if (loadCredentials()) {
                 LOG_DEBUG(F("Credentials exist"));
-                loadCredentials();
                 _currentState = CONNECT_TO_WLAN;
             }
             else {
-                LOG_DEBUG(F("Credentials do not exist"));
+                LOG_DEBUG(F("Credential CRC match fail"));  // CRC match failure
                 _currentState = SHOW_PORTAL;
             }
             break;
 
-        case SHOW_PORTAL:
-            // spin up captive portal
-            startConfigPortal();        // portal wifi page form submit will move the state to SAVE_CREDENTIALS
+        case SHOW_PORTAL:                                   // spin up captive portal
+            startConfigPortal();                            // portal wifi page form submit will move the state to SAVE_CREDENTIALS
             break;
 
         case SAVE_CREDENTIALS:
@@ -181,23 +83,27 @@ void WiFiManager::cycleStateMachine()
             _currentState = CONNECT_TO_WLAN;
             break;
 
-        case CONNECT_TO_WLAN:
+        case CONNECT_TO_WLAN:                               // connect and retry
             if (connectWifi() != WL_CONNECTED) {
                 _connectionAttempts++;
-                delay(500);             // give it some time
+                delay(500);                                 // give it some time
             }
             else {
                 _currentState = STOP;
             }
 
             if (_connectionAttempts > MAX_CONNECTION_ATTEMPTS-1) {
-                _accessPointRunning = false;    // reinitialise AP
+                _accessPointRunning = false;        // reinitialise AP
                 _currentState = SHOW_PORTAL;
             }
             break;
 
         case STOP:
             // done
+            break;
+
+        default:
+            LOGF_ERROR("Invalid state %d", _currentState);
             break;
     }
 
@@ -213,16 +119,8 @@ void WiFiManager::cycleStateMachine()
     _previousState = _currentState;
 }
 
-bool WiFiManager::autoConnect()
-{
-    // iterate through state machine until we have configured WiFi
-    while (_currentState != State_t::STOP)
-        cycleStateMachine();
-    return true;
-}
-
-/** Is this an IP? */
-boolean isIp(String str)
+// Is str an IP address
+boolean WiFiManager::isIp(const String& str) const
 {
     for (size_t i = 0; i < str.length(); i++)
     {
@@ -235,39 +133,29 @@ boolean isIp(String str)
     return true;
 }
 
-//---------------------------------------------------
-
 /**
  * Convert WL_STATUS into String for logging.
  */
-void WiFiManager::getWL_StatusAsString(String& status, const int8_t wlStatus)
+const char* WiFiManager::getWLStatus(const int8_t wlStatus) const
 {
     switch (wlStatus)
     {
         case WL_IDLE_STATUS:
-            status = "WL_IDLE_STATUS";
-            break;
+            return "WL_IDLE_STATUS";
         case WL_NO_SSID_AVAIL:
-            status = "WL_NO_SSID_AVAIL";
-            break;
+            return "WL_NO_SSID_AVAIL";
         case WL_SCAN_COMPLETED:
-            status = "WL_SCAN_COMPLETED";
-            break;
+            return "WL_SCAN_COMPLETED";
         case WL_CONNECTED:
-            status = "WL_CONNECTED";
-            break;
+            return "WL_CONNECTED";
         case WL_CONNECT_FAILED:
-            status = "WL_CONNECT_FAILED";
-            break;
+            return "WL_CONNECT_FAILED";
         case WL_CONNECTION_LOST:
-            status = "WL_CONNECTION_LOST";
-            break;
+            return "WL_CONNECTION_LOST";
         case WL_DISCONNECTED:
-            status = "WL_DISCONNECTED";
-            break;
+            return "WL_DISCONNECTED";
         default:
-            status = "Unknown";
-            break;
+            return "Unknown";
     }
 }
 
@@ -282,12 +170,9 @@ int8_t WiFiManager::connectWifi()
 
     WiFi.disconnect();
     WiFi.begin(_wlanSSID, _wlanPassword);
-    int8_t res = WiFi.waitForConnectResult(MAX_TIMEOUT_MS);
+    int8_t res = WiFi.waitForConnectResult(MAX_CONNECTION_TIMEOUT_MS);
 
-    String s;
-    getWL_StatusAsString(s, res);
-    LOGF_DEBUG("Connection result %s", s.c_str());
-
+    LOGF_DEBUG("Connection result %s", getWLStatus(res));
     return res;
 }
 
@@ -378,7 +263,7 @@ void WiFiManager::handleRoot()
     }
 
     sendStandardHeaders();
-    String html(root);
+    String html(root_template);
     html.replace("${oxrs.img}",           oxrs_img);
     html.replace("${firmware.name}",      FW_NAME);
     html.replace("${firmware.shortname}", FW_SHORT_NAME);
@@ -406,12 +291,11 @@ void WiFiManager::getSignalStrength(String& cssStyle, const int32_t rssi) const
 void WiFiManager::handleWifi()
 {
     sendStandardHeaders();
-    String html(wifi);
+    String html(wifi_template);
     html.replace("${oxrs.img}", oxrs_img);
-    html.replace("${img.unlock}", unlock);
-    html.replace("${img.lock}", lock);
+    html.replace("${img.lock}", lock_img);
 
-    String networks;
+    String htmlNetworks;
     LOG_DEBUG(F("Network scan start"));
     int n = WiFi.scanNetworks();
     LOG_DEBUG(F("Network scan complete"));
@@ -420,25 +304,25 @@ void WiFiManager::handleWifi()
         for (int i = 0; i < n; i++) {
             if ( strlen(WiFi.SSID(i)) > 0 )     // ignore hidden SSIDs
             {
-                String network(wifi_network);
-                network.replace("${name}", WiFi.SSID(i));
+                String htmlNetwork(wifi_network_template);
+                htmlNetwork.replace("${name}", WiFi.SSID(i));
 
                 String signal;
                 getSignalStrength(signal, WiFi.RSSI(i));
-                network.replace("${signal}", signal);
+                htmlNetwork.replace("${signal}", signal);
 
-                network.replace("${network.security}", WiFi.encryptionType(i) == ENC_TYPE_NONE ? "unlock" : "lock");
-                networks += network;
+                htmlNetwork.replace("${network.security}", WiFi.encryptionType(i) == ENC_TYPE_NONE ? "unlock" : "lock");
+                htmlNetworks += htmlNetwork;
             }
         }
     }
     else {
-        networks = F("<tr><td>No networks found</td></tr>");
+        htmlNetworks = F("<tr><td>No networks found</td></tr>");
     }
 
-    WiFi.scanDelete();
+    WiFi.scanDelete();                      // clean-up
 
-    html.replace("${networks}", networks);
+    html.replace("${networks}", htmlNetworks);
     server.send(200, "text/html", html);
     server.client().stop();                 // Stop is needed because we sent no content length
 }
@@ -450,32 +334,14 @@ void WiFiManager::handleWifiSave()
 {
     LOG_DEBUG(F("Handle WiFi save"));
 
-    server.arg("n").toCharArray(_wlanSSID, sizeof(_wlanSSID) - 1);
-    server.arg("p").toCharArray(_wlanPassword, sizeof(_wlanPassword) - 1);
+    server.arg("n").toCharArray(_wlanSSID, SSID_OR_PWD_MAXLEN);
+    server.arg("p").toCharArray(_wlanPassword, SSID_OR_PWD_MAXLEN);
     server.sendHeader("Location", "wifi", true);
     sendStandardHeaders();
     server.send(302, "text/plain", "");     // Empty content inhibits Content-length header so we have to close the socket ourselves.
     server.client().stop();                 // Stop is needed because we sent no content length
     
     _currentState = State_t::SAVE_CREDENTIALS;      // force next step in state machine
-}
-
-void WiFiManager::saveCredentials()
-{
-    // save to EEPROM (emulated)
-    wifi_credentials_t creds;
-    strcpy(creds.ssid, _wlanSSID);
-    strcpy(creds.pwd, _wlanPassword);
-    EEPROM.put(0, creds);
-}
-
-void WiFiManager::loadCredentials()
-{
-    // load from EEPROM (emulated)
-    wifi_credentials_t creds;
-    EEPROM.get(0, creds);
-    strncpy(_wlanSSID, creds.ssid, 32);
-    strncpy(_wlanPassword, creds.pwd, 32);
 }
 
 void WiFiManager::handleNotFound()
@@ -504,4 +370,47 @@ void WiFiManager::handleNotFound()
 //FIXME: button to get back home?
 }
 
-#endif
+bool WiFiManager::loadCredentials()
+{
+    // load credentials from EEPROM (emulated)
+    wifi_credentials_t temp;
+    EEPROM.get(0, temp);
+
+    CRC32 crc32;
+    crc32.add((const uint8_t*)temp._ssid, strlen(temp._ssid));
+    crc32.add((const uint8_t*)temp._pwd, strlen(temp._pwd));
+    uint32_t tempCRC = crc32.calc();
+
+    LOGF_DEBUG("Retrieved credentials for SSID: %s and CRC %d", temp._ssid, temp._crc);
+
+    // compare CRC
+    if (tempCRC != temp._crc)
+    {
+        return false;
+    }
+    else
+    {
+        // copy temp to this
+        strncpy(_wlanSSID, temp._ssid, sizeof(temp._ssid));
+        strncpy(_wlanPassword, temp._pwd, sizeof(temp._pwd));
+        return true;
+    }
+}
+
+void WiFiManager::saveCredentials()
+{
+    // save to EEPROM (emulated)
+    wifi_credentials_t temp;
+    strncpy(temp._ssid, _wlanSSID, sizeof(_wlanSSID));
+    strncpy(temp._pwd, _wlanPassword, sizeof(_wlanPassword));
+
+    CRC32 crc32;
+    crc32.add((const uint8_t*)_wlanSSID, strlen(_wlanSSID));
+    crc32.add((const uint8_t*)_wlanPassword, strlen(_wlanPassword));
+    temp._crc = crc32.calc();
+
+    EEPROM.put(0, temp);
+    EEPROM.commit();
+
+    LOGF_DEBUG("Stored credentials for SSID: %s and CRC: %d", temp._ssid, temp._crc);
+}

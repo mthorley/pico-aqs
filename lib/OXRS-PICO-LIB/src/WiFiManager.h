@@ -6,30 +6,19 @@
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>    // yes this is correct
 #include <EEPROM.h>         // simulated EEPROM: https://arduino-pico.readthedocs.io/en/latest/eeprom.html
+#include <CRC32.h>
 
 /**
+ * @brief WiFiManager provides captive portal and network configuration management to allow devices
+ * to connect to a local network SSID and password.
+ *
  * Derived from the excellent https://www.smartlab.at/implement-an-esp32-hot-spot-that-runs-a-captive-portal/ and
  * https://stackoverflow.com/questions/54583818/esp-auto-login-accept-message-by-os-with-redirect-to-page-like-public-wifi-port
  */
 
-#define SSID_OR_PWD_LEN   32
+#define SSID_OR_PWD_MAXLEN   32
 
-typedef struct wifi_credentials_t {
-    char ssid[SSID_OR_PWD_LEN];
-    char pwd[SSID_OR_PWD_LEN];
-
-/*    void serialise(std::ostream &out) const {
-        out << ssid << pwd;
-    }
-
-    static wifi_credentials_t deserialise(std::istream &in) {
-        wifi_credentials_t c;
-        in >> c.ssid >> c.pwd;
-        return c;
-    }*/
-} wifi_credentials_t;
-
-class WiFiManager 
+class WiFiManager
 {
 public:
     WiFiManager(char const *apName, char const *apPassword);
@@ -40,8 +29,12 @@ public:
     // hostname for mDNS to enable http://oxrs.local
     inline static const char *HOSTNAME = "oxrs";
 
-    void saveCredentials(wifi_credentials_t creds);
-    void loadCredentials(wifi_credentials_t& creds);
+    // Used to load/save credentials and CRC32 as struct in EEPROM.
+    typedef struct wifi_credentials_t {
+        char      _ssid[SSID_OR_PWD_MAXLEN + 1];
+        char      _pwd[SSID_OR_PWD_MAXLEN + 1];
+        uint32_t  _crc;                          // CRC32 check
+    } wifi_credentials_t;
 
 private:
     // state machine states
@@ -51,15 +44,25 @@ private:
         CONNECT_TO_WLAN,    // -> (connection successful) ? STOP : RETRY_CONNECTION                         //  exceeded retries, then _accessPointRunning false to reinitalise AP
         RETRY_CONNECTION,   // -> (num connection attempts > 3) ? SHOW_PORTAL : CONNECT_TO_WLAN             // _connectionAttempts++
         SHOW_PORTAL,        // -> (WLAN configured) ? SAVE_CREDS : SHOW_PORTAL
-        SAVE_CREDENTIALS,   // -> (save credentials) ? CONNECT_TO_WLAN : error                              // _connectionAttempts reset
+        SAVE_CREDENTIALS,   // -> (save credentials) then CONNECT_TO_WLAN                                   // _connectionAttempts reset
         STOP
     } State_t;
 
+    // heart of the machine
     void cycleStateMachine();
+
+    // wifi connection methods
+    int8_t connectWifi();
+    const char* getWLStatus(const int8_t wlStatus) const;
 
     // captive portal methods
     bool startConfigPortal();
     bool redirectToPortal() const;
+    boolean isIp(const String& str) const;
+
+    // credential EEPROM storage
+    bool loadCredentials();
+    void saveCredentials();
 
 #ifdef __DEPRECATED__
 #define FLASH_POS_SSID    0
@@ -67,12 +70,6 @@ private:
     void writeCredentials(const wifi_credentials_t& creds);
     void readCredentials(wifi_credentials_t& creds);
 #endif
-
-    // WiFi credential methods
-    bool credentialsExist();
-    void clearCredentials();    // FIXME: is this required?
-    void saveCredentials();
-    void loadCredentials();
 
     // webserver handler callbacks
     void handleRoot();
@@ -84,9 +81,6 @@ private:
     void sendStandardHeaders();
     void getSignalStrength(String& cssStyle, const int32_t rssi) const;
 
-    int8_t connectWifi();       // connect to wlan
-
-    void getWL_StatusAsString(String& status, const int8_t wlStatus);
 
 // members
     State_t _currentState;              // current state of network configuration state machine
@@ -106,14 +100,14 @@ private:
     inline static const byte DNS_PORT = 53;
 
     // WiFi connection consts
-    inline static const uint8_t  MAX_CONNECTION_ATTEMPTS = 3;    // max number of attempts to connect to WiFi
-    inline static const uint16_t MAX_TIMEOUT_MS          = 10000;        // num of ms to wait until WiFi connection
+    inline static const uint8_t  MAX_CONNECTION_ATTEMPTS   = 3;       // max number of attempts to connect to WiFi
+    inline static const uint16_t MAX_CONNECTION_TIMEOUT_MS = 10000;   // num of ms to wait for successful WiFi connection
 
     // Target WLAN SSID and password
-    char _wlanSSID[32];
-    char _wlanPassword[32];
+    char _wlanSSID[SSID_OR_PWD_MAXLEN + 1];
+    char _wlanPassword[SSID_OR_PWD_MAXLEN + 1];
 
     // Access point SSID and password
-    char _apSSID[32];
-    char _apPassword[32];
+    char _apSSID[SSID_OR_PWD_MAXLEN + 1];
+    char _apPassword[SSID_OR_PWD_MAXLEN + 1];
 };
