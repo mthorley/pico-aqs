@@ -64,13 +64,6 @@ private:
     bool loadCredentials();
     void saveCredentials();
 
-#ifdef __DEPRECATED__
-#define FLASH_POS_SSID    0
-#define FLASH_POS_PWD     64
-    void writeCredentials(const wifi_credentials_t& creds);
-    void readCredentials(wifi_credentials_t& creds);
-#endif
-
     // webserver handler callbacks
     void handleRoot();
     void handleWifi();
@@ -80,7 +73,6 @@ private:
     // html helpers
     void sendStandardHeaders();
     void getSignalStrength(String& cssStyle, const int32_t rssi) const;
-
 
 // members
     State_t _currentState;              // current state of network configuration state machine
