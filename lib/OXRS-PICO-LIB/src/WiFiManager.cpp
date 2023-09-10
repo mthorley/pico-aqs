@@ -93,7 +93,7 @@ void WiFiManager::cycleStateMachine()
             }
 
             if (_connectionAttempts > MAX_CONNECTION_ATTEMPTS-1) {
-                _accessPointRunning = false;        // reinitialise AP
+                _accessPointRunning = false;                // reinitialise AP
                 _currentState = SHOW_PORTAL;
             }
             break;
@@ -164,7 +164,7 @@ const char* WiFiManager::getWLStatus(const int8_t wlStatus) const
  *
  * @return int8_t connection result
  */
-int8_t WiFiManager::connectWifi()
+int8_t WiFiManager::connectWifi() const
 {
     LOGF_DEBUG("Connecting as wifi client to SSID %s", _wlanSSID);
 
@@ -245,7 +245,7 @@ bool WiFiManager::redirectToPortal() const
 /**
  * Send standard HTTP headers
  */
-void WiFiManager::sendStandardHeaders()
+void WiFiManager::sendStandardHeaders() const
 {
     server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     server.sendHeader("Pragma", "no-cache");
@@ -255,7 +255,7 @@ void WiFiManager::sendStandardHeaders()
 /** 
  * Handle root or redirect to captive portal
  */
-void WiFiManager::handleRoot()
+void WiFiManager::handleRoot() const
 {
     // If captive portal then redirect instead of displaying the page
     if (redirectToPortal()) { 
@@ -288,7 +288,7 @@ void WiFiManager::getSignalStrength(String& cssStyle, const int32_t rssi) const
 /**
  * Show available wifi networks.
  */
-void WiFiManager::handleWifi()
+void WiFiManager::handleWifi() const
 {
     sendStandardHeaders();
     String html(wifi_template);
@@ -344,7 +344,7 @@ void WiFiManager::handleWifiSave()
     _currentState = State_t::SAVE_CREDENTIALS;      // force next step in state machine
 }
 
-void WiFiManager::handleNotFound()
+void WiFiManager::handleNotFound() const
 {
     // If captive portal then redirect instead of displaying the error page
     if (redirectToPortal())

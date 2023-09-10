@@ -26,17 +26,16 @@ public:
 
     bool autoConnect();
 
-    // hostname for mDNS to enable http://oxrs.local
-    inline static const char *HOSTNAME = "oxrs";
+    inline static const char *HOSTNAME = "oxrs";    // hostname for mDNS to enable http://oxrs.local
 
+private:
     // Used to load/save credentials and CRC32 as struct in EEPROM.
     typedef struct wifi_credentials_t {
         char      _ssid[SSID_OR_PWD_MAXLEN + 1];
         char      _pwd[SSID_OR_PWD_MAXLEN + 1];
-        uint32_t  _crc;                          // CRC32 check
+        uint32_t  _crc;                             // CRC32 check
     } wifi_credentials_t;
 
-private:
     // state machine states
     typedef enum State {    // _currentState, _previousState;
         START,
@@ -52,7 +51,7 @@ private:
     void cycleStateMachine();
 
     // wifi connection methods
-    int8_t connectWifi();
+    int8_t connectWifi() const;
     const char* getWLStatus(const int8_t wlStatus) const;
 
     // captive portal methods
@@ -65,13 +64,13 @@ private:
     void saveCredentials();
 
     // webserver handler callbacks
-    void handleRoot();
-    void handleWifi();
+    void handleRoot() const;
+    void handleWifi() const;
     void handleWifiSave();
-    void handleNotFound();
+    void handleNotFound() const;
 
     // html helpers
-    void sendStandardHeaders();
+    void sendStandardHeaders() const;
     void getSignalStrength(String& cssStyle, const int32_t rssi) const;
 
 // members
