@@ -200,9 +200,6 @@ void OXRS_IO_PICO::initialiseNetwork(byte *mac)
     sprintf_P(mac_display, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     LOG_INFO(mac_display);
 
-    // Ensure we are in the correct WiFi mode
-//    WiFi.mode(WIFI_STA);
-
     // Connect using saved creds, or start captive portal if none found
     // NOTE: Blocks until connected or the portal is closed
     WiFiManager wm("OXRS_WiFi", "superhouse");
