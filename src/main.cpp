@@ -169,11 +169,11 @@ void setup()
 {
     Serial.begin();
 
-    while(!Serial) {
-        ; // wait for serial port to connect. Needed for native USB
-    }
+//    while(!Serial) {
+//        ; // wait for serial port to connect. Needed for native USB
+//    }
 
-//    delay(1000);            // Give the serial terminal a chance to connect, if present
+    delay(1000);            // Give the serial terminal a chance to connect, if present
     Serial.println("Serial initialised");
 
     Wire.begin();
