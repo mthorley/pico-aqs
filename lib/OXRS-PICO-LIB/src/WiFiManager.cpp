@@ -7,7 +7,6 @@
 Tasks
 - unit tests for EEPROM creds
 - validation of ssid, pwd for type and length
-- move WebServer and DNS to pointers so the destructor cleans em up
 */
 
 // DNS server
@@ -38,6 +37,9 @@ WiFiManager::WiFiManager(const char *apName, const char *apPassword) :
 
 WiFiManager::~WiFiManager()
 {
+    // stop WiFiManager servers so other servers downstream (e.g. aWOT) can use the same ports
+    dnsServer.stop();
+    server.stop();
 }
 
 bool WiFiManager::autoConnect()
@@ -68,8 +70,8 @@ void WiFiManager::cycleStateMachine()
                 _currentState = CONNECT_TO_WLAN;
             }
             else {
-                LOG_DEBUG(F("Credential CRC match fail"));  // CRC match failure
-                _currentState = SHOW_PORTAL;
+                LOG_DEBUG(F("Credential CRC match fail"));
+                _currentState = SHOW_PORTAL;                // CRC match failure so show captive portal
             }
             break;
 
@@ -83,7 +85,7 @@ void WiFiManager::cycleStateMachine()
             _currentState = CONNECT_TO_WLAN;
             break;
 
-        case CONNECT_TO_WLAN:                               // connect and retry
+        case CONNECT_TO_WLAN:                               // attempt to connect and retry
             if (connectWifi() != WL_CONNECTED) {
                 _connectionAttempts++;
                 delay(500);                                 // give it some time
@@ -98,8 +100,7 @@ void WiFiManager::cycleStateMachine()
             }
             break;
 
-        case STOP:
-            // done
+        case STOP:                                          // done: WiFi creds configured and connected to
             break;
 
         default:
