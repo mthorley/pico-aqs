@@ -10,6 +10,9 @@
  * Refer https://www.sensirion.com/media/documents/6791EFA0/62A1F68F/Sensirion_Datasheet_Environmental_Node_SEN5x.pdf
  */
 
+// Struct capturing measurements of SEN5x sensor.
+// Note PM4.0 and PM10.0 are statistically generated and not measured: refer
+// https://sensirion.com/media/documents/B7AAA101/61653FB8/Sensirion_Particulate_Matter_AppNotes_Specification_Statement.pdf
 typedef struct {
     float pm1p0;                // particulate matter PM1.0 µm
     float pm2p5;                // particulate matter PM2.5 µm
