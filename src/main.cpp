@@ -189,8 +189,16 @@ void setup()
     oxrsSen5x.begin(Wire);
 }
 
+static int cnt = 0;
+static int currheap = 0;
+static int prevheap = -1;
+
 void loop()
 {
+//    int sec = millis() / 1000;
+//    int min = sec / 60;
+//    int hr = min / 60;
+
     oxrsPico.loop();
 
     oxrsSen5x.loop();
@@ -219,4 +227,9 @@ void loop()
     {
         publishHassDiscovery();
     }
+
+//    currheap = rp2040.getFreeHeap();
+//    if (prevheap != currheap)
+//        LOGF_DEBUG("uptime %02d:%02d:%02d free mem %d loop count %d", hr, min % 60, sec % 60, currheap, ++cnt);
+//    prevheap = currheap;
 }

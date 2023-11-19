@@ -203,6 +203,12 @@ void OXRS_IO_PICO::initialiseNetwork(byte *mac)
     // Connect using saved creds, or start captive portal if none found
     // NOTE: Blocks until connected or the portal is closed
     WiFiManager wm("OXRS_WiFi", "superhouse");
+    String title("PicoW");
+    String name(FW_NAME);
+    String shortname(FW_SHORT_NAME);
+    String maker(FW_MAKER);
+    String version(FW_VERSION);
+    wm.setContentText(title, name, shortname, maker, version);
     bool success = wm.autoConnect();
     String ip = success ? WiFi.localIP().toString() : IPAddress(0, 0, 0, 0).toString();
     LOGF_INFO("network %s", ip.c_str());

@@ -14,7 +14,8 @@
       "OXRS_TIME": "^1.0.0",
       "OXRS_LOG": "^1.0.0",
       "aWOT": "^3.5.0",
-      "CRC": "^1.0.1"
+      "CRC": "^1.0.1",
+      "WiFiManager-Pico": "^1.0.0"
     },
     "frameworks": "*",
     "platforms": "*"
