@@ -5,6 +5,16 @@
 #include <OXRS_HASS.h>
 #include <OXRS_SEN5x.h>
 
+/*
+Code assumes I2C0 and default Wire(0)
+
+PicoW::VSYS (PIN39)    -> SEN5x::VDD (PIN1)
+PicoW::GND  (PIN3)     -> SEN5x::GND (PIN2)
+PicoW::I2C0 SDA (PIN6) -> SEN5x::SDA (PIN3)
+PicoW::I2C0 SCL (PIN7) -> SEN5x::SCL (PIN4)
+PicoW::GND  (PIN3)     -> SEN5x::SEL (PIN5)
+*/
+
 // OXRS layer
 bool usePicoOnboardTempSensor = false;
 OXRS_IO_PICO oxrsPico(usePicoOnboardTempSensor);
