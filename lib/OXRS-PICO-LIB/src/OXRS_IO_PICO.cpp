@@ -1,6 +1,5 @@
 /**
- * OXRS-IO-Generic-PICOW-LIB
- * TODO: Confirm naming convention here.
+ * OXRS-IO-PICO-LIB
  */
 
 #include "hardware/watchdog.h"
@@ -15,7 +14,7 @@
 #include <WiFiManager.h>
 
 // #define __WATCHDOG
-
+// #define __USE_OXRS_TIME_LIB
 static const char *_LOG_PREFIX = "[OXRS_IO_PICO] ";
 
 // Supported firmware config and command schemas
@@ -38,7 +37,9 @@ OXRS_LOG::MQTTLogger _mqttLogger(_mqttClient);   // Logging (topic updated once 
 OXRS_LOG::SysLogger  _sysLogger;                 // Updated on config
 
 // Time
+#ifdef __USE_OXRS_TIME_LIB
 OXRS_TIME oxrsTime;
+#endif
 
 // MQTT callbacks wrapped by _mqttConfig/_mqttCommand
 jsonCallback _onConfig;
@@ -380,7 +381,9 @@ void OXRS_IO_PICO::getConfigSchemaJson(JsonVariant json)
 
     // Append other config
     oxrsLog.setConfig(props);
+#ifdef __USE_OXRS_TIME_LIB
     oxrsTime.setConfig(props);
+#endif
 }
 
 void OXRS_IO_PICO::setConfigSchema(JsonVariant json)
@@ -443,7 +446,9 @@ void OXRS_IO_PICO::initialiseWatchdog()
 
 void OXRS_IO_PICO::initialiseTime()
 {
+#ifdef __USE_OXRS_TIME_LIB
     oxrsTime.begin();
+#endif
 }
 
 void OXRS_IO_PICO::begin(jsonCallback config, jsonCallback command)
